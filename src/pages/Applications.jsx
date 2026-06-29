@@ -20,11 +20,7 @@ function ActiveLoanWarning({ applicantId }) {
 
   if (!hasActive) return null
 
-  function getWhatsAppLink(app) {
-  const phone = app.guarantors?.phone?.replace(/^0/, '234') || ''
-  const message = `Hello ${app.guarantors?.full_name}, you have been listed as a guarantor for a loan application on Gamma-lobo Enterprise. Please complete your guarantor form here: ${window.location.origin}/guarantor/${app.guarantor_token}`
-  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
-}
+  
   return (
     <p className="text-xs text-orange-500 font-medium mt-1">
       ⚠️ This loanee has an active loan
@@ -33,6 +29,11 @@ function ActiveLoanWarning({ applicantId }) {
 }
 
 export default function Applications() {
+  function getWhatsAppLink(app) {
+  const phone = app.guarantors?.phone?.replace(/^0/, '234') || ''
+  const message = `Hello ${app.guarantors?.full_name}, you have been listed as a guarantor for a loan application on Gamma-lobo Enterprise. Please complete your guarantor form here: ${window.location.origin}/guarantor/${app.guarantor_token}`
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+}
   const [applications, setApplications] = useState([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
