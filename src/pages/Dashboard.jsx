@@ -15,9 +15,7 @@ export default function Dashboard() {
   const [overdueList, setOverdueList] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchDashboardData()
-  }, [])
+  useEffect(() => { fetchDashboardData() }, [])
 
   async function fetchDashboardData() {
     await supabase.rpc('check_overdue_loans')
@@ -55,18 +53,23 @@ export default function Dashboard() {
     setLoading(false)
   }
 
-  function getStatusBadge(status) {
+  const statCards = [
+    { label: 'Active Loans', value: stats.activeLoans, color: '#1e3a5f', text: 'white' },
+    { label: 'Total Outstanding', value: `₦${stats.totalOutstanding.toLocaleString()}`, color: '#c9a84c', text: 'white' },
+    { label: 'Overdue Loans', value: stats.overdueLoans, color: '#dc2626', text: 'white' },
+    { label: 'Total Disbursed', value: `₦${stats.totalDisbursed.toLocaleString()}`, color: '#1e3a5f', text: 'white' },
+    { label: 'Settled Loans', value: stats.settledLoans, color: '#16a34a', text: 'white' },
+    { label: 'Pending Applications', value: stats.pendingApplications, color: '#d97706', text: 'white' },
+  ]
+
+  function getStatusStyle(status) {
     const styles = {
-      active: 'bg-green-100 text-green-700',
-      overdue: 'bg-red-100 text-red-700',
-      settled: 'bg-gray-100 text-gray-600',
-      rolled_over: 'bg-orange-100 text-orange-700',
+      active: { background: '#dcfce7', color: '#16a34a' },
+      overdue: { background: '#fee2e2', color: '#dc2626' },
+      settled: { background: '#f1f5f9', color: '#64748b' },
+      rolled_over: { background: '#ffedd5', color: '#ea580c' },
     }
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-600'}`}>
-        {status.replace('_', ' ').toUpperCase()}
-      </span>
-    )
+    return styles[status] || { background: '#f1f5f9', color: '#64748b' }
   }
 
   return (
@@ -74,25 +77,30 @@ export default function Dashboard() {
       <div className="max-w-6xl mx-auto">
 
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-          <p className="text-gray-500 text-sm">Welcome back — here's your overview</p>
+          <h1 className="text-2xl font-black text-gray-800">Dashboard</h1>
+          <p className="text-gray-400 text-sm mt-1">Welcome back — here's your overview</p>
         </div>
 
         {loading ? (
-          <div className="text-center text-gray-500 text-sm py-10">Loading...</div>
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <div className="w-10 h-10 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin mx-auto mb-3"></div>
+              <p className="text-gray-400 text-sm">Loading...</p>
+            </div>
+          </div>
         ) : (
           <>
             {overdueList.length > 0 && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-5 mb-6">
-                <h2 className="text-sm font-semibold text-red-700 mb-3">
-                  ⚠️ Overdue Loans ({overdueList.length})
+              <div className="rounded-2xl p-5 mb-6 border border-red-200" style={{ background: '#fff5f5' }}>
+                <h2 className="text-sm font-bold text-red-700 mb-3 flex items-center gap-2">
+                  <span>⚠️</span> Overdue Loans ({overdueList.length})
                 </h2>
                 <div className="space-y-2">
                   {overdueList.map(loan => (
-                    <div key={loan.id} className="flex justify-between items-center bg-white rounded-lg p-3 shadow-sm">
+                    <div key={loan.id} className="flex justify-between items-center bg-white rounded-xl p-3 shadow-sm">
                       <div>
-                        <p className="text-sm font-medium text-gray-800">{loan.applicants?.full_name}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-sm font-semibold text-gray-800">{loan.applicants?.full_name}</p>
+                        <p className="text-xs text-gray-400">
                           Due: {new Date(loan.due_date).toLocaleDateString('en-NG', {
                             day: 'numeric', month: 'short', year: 'numeric'
                           })}
@@ -108,60 +116,44 @@ export default function Dashboard() {
             )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-              <div className="bg-white rounded-xl shadow-sm p-5">
-                <p className="text-gray-500 text-xs">Active Loans</p>
-                <p className="text-3xl font-bold text-gray-800 mt-1">{stats.activeLoans}</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm p-5">
-                <p className="text-gray-500 text-xs">Total Outstanding</p>
-                <p className="text-2xl font-bold text-gray-800 mt-1">
-                  ₦{stats.totalOutstanding.toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm p-5">
-                <p className="text-gray-500 text-xs">Overdue Loans</p>
-                <p className="text-3xl font-bold text-red-500 mt-1">{stats.overdueLoans}</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm p-5">
-                <p className="text-gray-500 text-xs">Total Disbursed</p>
-                <p className="text-2xl font-bold text-gray-800 mt-1">
-                  ₦{stats.totalDisbursed.toLocaleString()}
-                </p>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm p-5">
-                <p className="text-gray-500 text-xs">Settled Loans</p>
-                <p className="text-3xl font-bold text-green-600 mt-1">{stats.settledLoans}</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm p-5">
-                <p className="text-gray-500 text-xs">Pending Applications</p>
-                <p className="text-3xl font-bold text-yellow-500 mt-1">{stats.pendingApplications}</p>
-              </div>
+              {statCards.map((card, i) => (
+                <div key={i} className="rounded-2xl p-5 shadow-sm"
+                  style={{ background: card.color }}>
+                  <p className="text-xs font-medium opacity-80" style={{ color: card.text }}>{card.label}</p>
+                  <p className="text-2xl font-black mt-2" style={{ color: card.text }}>{card.value}</p>
+                </div>
+              ))}
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="p-5 border-b">
-                <h2 className="text-sm font-semibold text-gray-700">Recent Loans</h2>
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="p-5 border-b flex items-center gap-3">
+                <div className="w-1 h-5 rounded-full" style={{ background: '#c9a84c' }}></div>
+                <h2 className="text-sm font-bold text-gray-700">Recent Loans</h2>
               </div>
               {recentLoans.length === 0 ? (
-                <div className="p-6 text-center text-gray-500 text-sm">No loans yet</div>
+                <div className="p-10 text-center">
+                  <p className="text-gray-300 text-4xl mb-2">💰</p>
+                  <p className="text-gray-400 text-sm">No loans yet</p>
+                </div>
               ) : (
                 <div className="divide-y">
                   {recentLoans.map(loan => (
-                    <div key={loan.id} className="p-4 flex justify-between items-center">
+                    <div key={loan.id} className="p-4 flex justify-between items-center hover:bg-gray-50 transition">
                       <div>
-                        <p className="font-medium text-gray-800 text-sm">
-                          {loan.applicants?.full_name}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          ₦{Number(loan.principal).toLocaleString()} — Due:{' '}
+                        <p className="font-semibold text-gray-800 text-sm">{loan.applicants?.full_name}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          ₦{Number(loan.principal).toLocaleString()} · Due:{' '}
                           {new Date(loan.due_date).toLocaleDateString('en-NG', {
                             day: 'numeric', month: 'short', year: 'numeric'
                           })}
                         </p>
                       </div>
                       <div className="text-right">
-                        {getStatusBadge(loan.status)}
-                        <p className="text-xs text-gray-500 mt-1">
+                        <span className="px-2 py-1 rounded-lg text-xs font-semibold"
+                          style={getStatusStyle(loan.status)}>
+                          {loan.status.replace('_', ' ').toUpperCase()}
+                        </span>
+                        <p className="text-xs text-gray-400 mt-1">
                           ₦{Number(loan.outstanding_balance).toLocaleString()} left
                         </p>
                       </div>
@@ -172,7 +164,6 @@ export default function Dashboard() {
             </div>
           </>
         )}
-
       </div>
     </MainLayout>
   )
