@@ -178,75 +178,278 @@ export default function Loans() {
 }
 
   async function printReceipt(loan, payment) {
-    const { data: settings } = await supabase
-      .from('settings').select('*').single()
-    const receipt = `
-GAMMA-LOBO ENTERPRISE
-Payment Receipt
--------------------------
-Loanee: ${loan.applicants?.full_name}
-Amount Paid: ₦${Number(payment.amount_paid).toLocaleString()}
-Payment Date: ${new Date(payment.payment_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
-Outstanding Balance: ₦${Number(loan.outstanding_balance).toLocaleString()}
--------------------------
-Repay to: ${settings.repayment_account_name}
-Bank: ${settings.repayment_bank}
-Account No: ${settings.repayment_account_no}
--------------------------
-Thank you for your payment.
-    `
-    const win = window.open('', '_blank')
-    win.document.write(`<pre style="font-family:monospace;padding:20px;">${receipt}</pre>`)
-    win.print()
-  }
+  const { data: settings } = await supabase
+    .from('settings').select('*').single()
+
+  const receiptNo = `RCP-${Date.now().toString().slice(-6)}`
+
+  const win = window.open('', '_blank')
+  win.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Payment Receipt - ${loan.applicants?.full_name}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Arial', sans-serif; color: #1a1a1a; background: white; display: flex; justify-content: center; padding: 40px; }
+        .receipt { width: 400px; border: 2px solid #1e3a5f; border-radius: 16px; overflow: hidden; }
+        .receipt-header { background: linear-gradient(135deg, #1e3a5f, #2d5282); padding: 24px; text-align: center; }
+        .logo-circle { width: 48px; height: 48px; border-radius: 10px; background: rgba(201,168,76,0.2); border: 2px solid #c9a84c; display: flex; align-items: center; justify-content: center; color: #c9a84c; font-size: 22px; font-weight: 900; margin: 0 auto 10px; }
+        .receipt-title { color: white; font-size: 18px; font-weight: 900; }
+        .receipt-sub { color: rgba(255,255,255,0.7); font-size: 11px; margin-top: 4px; }
+        .receipt-body { padding: 24px; }
+        .receipt-no { text-align: center; background: #f8fafc; border-radius: 8px; padding: 8px; margin-bottom: 20px; font-size: 11px; color: #64748b; font-weight: 600; letter-spacing: 1px; }
+        .amount-box { background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 2px solid #86efac; border-radius: 12px; padding: 16px; text-align: center; margin-bottom: 20px; }
+        .amount-label { font-size: 11px; color: #16a34a; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+        .amount-value { font-size: 32px; font-weight: 900; color: #15803d; margin-top: 4px; }
+        .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #e2e8f0; }
+        .row:last-child { border-bottom: none; }
+        .row-label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+        .row-value { font-size: 12px; font-weight: 600; color: #1a1a1a; text-align: right; max-width: 60%; }
+        .outstanding-box { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 12px; margin-top: 16px; display: flex; justify-content: space-between; align-items: center; }
+        .outstanding-label { font-size: 11px; color: #c2410c; font-weight: 700; text-transform: uppercase; }
+        .outstanding-value { font-size: 16px; font-weight: 900; color: #c2410c; }
+        .repay-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 12px; margin-top: 12px; }
+        .repay-title { font-size: 10px; color: #0369a1; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; }
+        .repay-text { font-size: 11px; color: #0c4a6e; font-weight: 600; line-height: 1.6; }
+        .receipt-footer { background: #f8fafc; padding: 16px; text-align: center; border-top: 2px dashed #e2e8f0; margin-top: 16px; }
+        .footer-text { font-size: 11px; color: #64748b; }
+        .footer-bold { font-size: 12px; font-weight: 700; color: #1e3a5f; margin-top: 4px; }
+        @media print { body { padding: 0; } .receipt { border: none; } }
+      </style>
+    </head>
+    <body>
+      <div class="receipt">
+        <div class="receipt-header">
+          <div class="logo-circle">G</div>
+          <div class="receipt-title">${settings.business_name}</div>
+          <div class="receipt-sub">Payment Receipt</div>
+        </div>
+
+        <div class="receipt-body">
+          <div class="receipt-no">RECEIPT NO: ${receiptNo}</div>
+
+          <div class="amount-box">
+            <div class="amount-label">Amount Paid</div>
+            <div class="amount-value">₦${Number(payment.amount_paid).toLocaleString()}</div>
+          </div>
+
+          <div class="row">
+            <div class="row-label">Borrower</div>
+            <div class="row-value">${loan.applicants?.full_name}</div>
+          </div>
+          <div class="row">
+            <div class="row-label">Phone</div>
+            <div class="row-value">${loan.applicants?.phone}</div>
+          </div>
+          <div class="row">
+            <div class="row-label">Payment Date</div>
+            <div class="row-value">${new Date(payment.payment_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+          </div>
+          <div class="row">
+            <div class="row-label">Loan Total</div>
+            <div class="row-value">₦${Number(loan.total_owed).toLocaleString()}</div>
+          </div>
+          <div class="row">
+            <div class="row-label">Total Paid</div>
+            <div class="row-value">₦${Number(loan.amount_paid).toLocaleString()}</div>
+          </div>
+          ${payment.note ? `
+          <div class="row">
+            <div class="row-label">Note</div>
+            <div class="row-value">${payment.note}</div>
+          </div>` : ''}
+
+          <div class="outstanding-box">
+            <div class="outstanding-label">Outstanding Balance</div>
+            <div class="outstanding-value">₦${Number(loan.outstanding_balance).toLocaleString()}</div>
+          </div>
+
+          <div class="repay-box">
+            <div class="repay-title">Repay Remaining Balance To</div>
+            <div class="repay-text">${settings.repayment_account_name}</div>
+            <div class="repay-text">${settings.repayment_bank} · ${settings.repayment_account_no}</div>
+          </div>
+        </div>
+
+        <div class="receipt-footer">
+          <div class="footer-text">Thank you for your payment</div>
+          <div class="footer-bold">${settings.business_name}</div>
+          <div class="footer-text" style="margin-top:4px; font-size:10px;">Generated: ${new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+        </div>
+      </div>
+
+      <script>window.onload = function() { window.print() }</script>
+    </body>
+    </html>
+  `)
+  win.document.close()
+}
 
   async function printLoanAgreement(loan) {
-    const { data: settings } = await supabase
-      .from('settings').select('*').single()
-    const agreement = `
-${settings.business_name}
-LOAN AGREEMENT FORM
-=========================================
-Name: ${loan.applicants?.full_name}
-Phone: ${loan.applicants?.phone}
+  const { data: settings } = await supabase
+    .from('settings').select('*').single()
 
-Loan Amount: ₦${Number(loan.principal).toLocaleString()}
-Interest Rate: ${loan.interest_rate}%
-Duration: 30 days
-Loan Date: ${new Date(loan.disbursed_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
-Repayment Amount: ₦${Number(loan.total_owed).toLocaleString()}
+  const win = window.open('', '_blank')
+  win.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Loan Agreement - ${loan.applicants?.full_name}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Arial', sans-serif; color: #1a1a1a; background: white; padding: 40px; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #1e3a5f; padding-bottom: 20px; margin-bottom: 30px; }
+        .logo-block { display: flex; align-items: center; gap: 12px; }
+        .logo-circle { width: 50px; height: 50px; border-radius: 12px; background: linear-gradient(135deg, #1e3a5f, #2d5282); display: flex; align-items: center; justify-content: center; color: #c9a84c; font-size: 24px; font-weight: 900; }
+        .business-name { font-size: 20px; font-weight: 900; color: #1e3a5f; }
+        .business-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+        .doc-info { text-align: right; }
+        .doc-title { font-size: 13px; font-weight: 700; color: #1e3a5f; text-transform: uppercase; letter-spacing: 1px; }
+        .doc-date { font-size: 11px; color: #64748b; margin-top: 4px; }
+        .section-title { font-size: 11px; font-weight: 700; color: #1e3a5f; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; }
+        .section { margin-bottom: 24px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .field { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; }
+        .field-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+        .field-value { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+        .highlight-box { background: linear-gradient(135deg, #1e3a5f, #2d5282); border-radius: 12px; padding: 20px; color: white; margin-bottom: 24px; }
+        .highlight-label { font-size: 11px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; }
+        .highlight-value { font-size: 28px; font-weight: 900; margin-top: 4px; color: #c9a84c; }
+        .highlight-sub { font-size: 12px; opacity: 0.8; margin-top: 6px; }
+        .terms-box { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+        .terms-title { font-size: 11px; font-weight: 700; color: #c2410c; margin-bottom: 8px; text-transform: uppercase; }
+        .terms-text { font-size: 11px; color: #7c2d12; line-height: 1.6; }
+        .repay-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+        .repay-title { font-size: 11px; font-weight: 700; color: #166534; margin-bottom: 8px; text-transform: uppercase; }
+        .repay-text { font-size: 12px; color: #166534; font-weight: 600; }
+        .signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 40px; }
+        .sig-line { border-top: 2px solid #1e3a5f; padding-top: 8px; }
+        .sig-label { font-size: 11px; color: #64748b; }
+        .sig-name { font-size: 12px; font-weight: 600; color: #1a1a1a; margin-top: 2px; }
+        .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 10px; color: #94a3b8; }
+        @media print { body { padding: 20px; } }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div class="logo-block">
+          <div class="logo-circle">G</div>
+          <div>
+            <div class="business-name">${settings.business_name}</div>
+            <div class="business-sub">Loan Management</div>
+          </div>
+        </div>
+        <div class="doc-info">
+          <div class="doc-title">Loan Agreement</div>
+          <div class="doc-date">Date: ${new Date(loan.disbursed_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+          <div class="doc-date">Due: ${new Date(loan.due_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+        </div>
+      </div>
 
-REPAYMENT DATE
-${new Date(loan.due_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
-Amount: ₦${Number(loan.total_owed).toLocaleString()}
+      <div class="highlight-box">
+        <div class="highlight-label">Loan Amount</div>
+        <div class="highlight-value">₦${Number(loan.principal).toLocaleString()}</div>
+        <div class="highlight-sub">Total Repayment: ₦${Number(loan.total_owed).toLocaleString()} · Interest: ${loan.interest_rate}% · Duration: 30 days</div>
+      </div>
 
-LOAN PAID TO
-Account No: ${loan.applicants?.account_number}
-Account Name: ${loan.applicants?.account_name}
-Bank: ${loan.applicants?.bank_name}
-BVN: ${loan.applicants?.bvn}
-NIN: ${loan.applicants?.nin}
+      <div class="section">
+        <div class="section-title">Borrower Details</div>
+        <div class="grid-2">
+          <div class="field">
+            <div class="field-label">Full Name</div>
+            <div class="field-value">${loan.applicants?.full_name}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Phone Number</div>
+            <div class="field-value">${loan.applicants?.phone}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">BVN</div>
+            <div class="field-value">${loan.applicants?.bvn || 'N/A'}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">NIN</div>
+            <div class="field-value">${loan.applicants?.nin || 'N/A'}</div>
+          </div>
+          <div class="field" style="grid-column: span 2">
+            <div class="field-label">Disbursement Account</div>
+            <div class="field-value">${loan.applicants?.account_name} · ${loan.applicants?.account_number} · ${loan.applicants?.bank_name}</div>
+          </div>
+        </div>
+      </div>
 
-Guarantor: ${loan.guarantors?.full_name}
-Guarantor Phone: ${loan.guarantors?.phone}
+      <div class="section">
+        <div class="section-title">Guarantor Details</div>
+        <div class="grid-2">
+          <div class="field">
+            <div class="field-label">Full Name</div>
+            <div class="field-value">${loan.guarantors?.full_name}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Phone Number</div>
+            <div class="field-value">${loan.guarantors?.phone}</div>
+          </div>
+        </div>
+      </div>
 
-REPAYABLE TO
-Account Name: ${settings.repayment_account_name}
-Bank: ${settings.repayment_bank}
-Account No: ${settings.repayment_account_no}
+      <div class="repay-box">
+        <div class="repay-title">Repayment Details</div>
+        <div class="repay-text">Account Name: ${settings.repayment_account_name}</div>
+        <div class="repay-text">Bank: ${settings.repayment_bank}</div>
+        <div class="repay-text">Account Number: ${settings.repayment_account_no}</div>
+      </div>
 
-PENALTY FOR MISSED PAYMENTS
-If a loan repayment is not paid within the due date, it attracts an
-automatic new loan term at 20% interest for 30 days.
+      <div class="terms-box">
+        <div class="terms-title">Penalty for Missed Payments</div>
+        <div class="terms-text">
+          If a loan repayment is not paid within the specified due date, it will attract an automatic new loan term 
+          in which the repayment amount becomes the new loan amount with a 30-day duration at 20% interest rate, 
+          while awaiting legal action. For every missed payment, 20% interest will be added with a duration of 30 days. 
+          Collateral equivalent to the missed repayment amount may be claimed at the time of legal action.
+        </div>
+      </div>
 
-By signing below, you agree to the above terms.
+      <div class="terms-box" style="background: #f8fafc; border-color: #e2e8f0;">
+        <div class="terms-title" style="color: #1e3a5f;">Agreement</div>
+        <div class="terms-text" style="color: #475569;">
+          By signing below, I confirm that I have read, understood, and agreed to the terms and conditions of this loan agreement.
+        </div>
+      </div>
 
-Signature: ___________________    Date: ___________
-    `
-    const win = window.open('', '_blank')
-    win.document.write(`<pre style="font-family:monospace;padding:30px;font-size:13px;">${agreement}</pre>`)
-    win.print()
-  }
+      <div class="signature-grid">
+        <div>
+          <div class="sig-line"></div>
+          <div class="sig-label">Borrower's Signature</div>
+          <div class="sig-name">${loan.applicants?.full_name}</div>
+        </div>
+        <div>
+          <div class="sig-line"></div>
+          <div class="sig-label">Guarantor's Signature</div>
+          <div class="sig-name">${loan.guarantors?.full_name}</div>
+        </div>
+        <div>
+          <div class="sig-line"></div>
+          <div class="sig-label">Lender's Signature</div>
+          <div class="sig-name">${settings.business_name}</div>
+        </div>
+        <div>
+          <div class="sig-line"></div>
+          <div class="sig-label">Date</div>
+          <div class="sig-name">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="footer">
+        ${settings.business_name} · ${settings.repayment_bank} · ${settings.repayment_account_no} · This is a legally binding document.
+      </div>
+
+      <script>window.onload = function() { window.print() }</script>
+    </body>
+    </html>
+  `)
+  win.document.close()
+}
 
   function getStatusStyle(status) {
     const styles = {
