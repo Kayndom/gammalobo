@@ -160,11 +160,11 @@ export default function Loanees() {
                     </p>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3 text-center">
-                    <p className="text-xs text-gray-500">Outstanding</p>
-                    <p className="font-bold text-red-600 text-sm">
-                      ₦{loans.reduce((sum, l) => sum + Number(l.outstanding_balance), 0).toLocaleString()}
-                    </p>
-                  </div>
+  <p className="text-xs text-gray-500">Outstanding</p>
+  <p className="font-bold text-red-600 text-sm">
+    ₦{loans.filter(l => ['active', 'overdue'].includes(l.status)).reduce((sum, l) => sum + Number(l.outstanding_balance), 0).toLocaleString()}
+  </p>
+</div>
                 </div>
               )}
 

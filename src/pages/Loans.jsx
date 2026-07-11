@@ -11,7 +11,9 @@ export default function Loans() {
   const [message, setMessage] = useState('')
   const [approvedApps, setApprovedApps] = useState([])
   const [disbursing, setDisbursing] = useState(null)
+  const [rollovers, setRollovers] = useState([])
   const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState('all')
 
   useEffect(() => { fetchLoans() }, [])
 
@@ -40,35 +42,45 @@ export default function Loans() {
     fetchApproved()
   }, [loans])
 
- async function createLoanFromApplication(app) {
-  setDisbursing(app.id)
-  const { data: settings } = await supabase
-    .from('settings').select('*').single()
-  const principal = app.loan_amount_requested
-  const rate = settings.standard_interest_rate
-  const interest = (principal * rate) / 100
-  const total = principal + interest
-  const disbursedAt = new Date()
-  const dueDate = new Date(disbursedAt)
-  dueDate.setDate(dueDate.getDate() + settings.loan_duration_days)
-  const { error } = await supabase.from('loans').insert({
-    application_id: app.id,
-    applicant_id: app.applicant_id,
-    guarantor_id: app.guarantor_id,
-    principal,
-    interest_rate: rate,
-    interest_amount: interest,
-    total_owed: total,
-    amount_paid: 0,
-    outstanding_balance: total,
-    loan_type: 'standard',
-    disbursed_at: disbursedAt.toISOString(),
-    due_date: dueDate.toISOString(),
-    status: 'active',
-  })
-  if (!error) fetchLoans()
-  setDisbursing(null)
-}
+  async function fetchRollovers(loanId) {
+    const { data } = await supabase
+      .from('rollovers')
+      .select('*')
+      .eq('loan_id', loanId)
+      .order('rollover_number', { ascending: true })
+    if (data) setRollovers(data)
+  }
+
+  async function createLoanFromApplication(app) {
+    setDisbursing(app.id)
+    const { data: settings } = await supabase
+      .from('settings').select('*').single()
+    const principal = app.loan_amount_requested
+    const rate = settings.standard_interest_rate
+    const interest = (principal * rate) / 100
+    const total = principal + interest
+    const disbursedAt = new Date()
+    const dueDate = new Date(disbursedAt)
+    dueDate.setDate(dueDate.getDate() + settings.loan_duration_days)
+    const { error } = await supabase.from('loans').insert({
+      application_id: app.id,
+      applicant_id: app.applicant_id,
+      guarantor_id: app.guarantor_id,
+      principal,
+      interest_rate: rate,
+      interest_amount: interest,
+      total_owed: total,
+      amount_paid: 0,
+      outstanding_balance: total,
+      loan_type: 'standard',
+      rollover_count: 0,
+      disbursed_at: disbursedAt.toISOString(),
+      due_date: dueDate.toISOString(),
+      status: 'active',
+    })
+    if (!error) fetchLoans()
+    setDisbursing(null)
+  }
 
   async function addInstalment() {
     if (!instalment.amount || !instalment.date) return
@@ -99,170 +111,187 @@ export default function Loans() {
     setInstalment({ amount: '', date: '', note: '' })
     setMessage('Payment recorded successfully')
     setAdding(false)
-    fetchLoans()
-    setSelectedLoan(prev => ({
-      ...prev,
+    const updatedLoan = {
+      ...selectedLoan,
       amount_paid: newAmountPaid,
       outstanding_balance: newOutstanding <= 0 ? 0 : newOutstanding,
       status: newStatus,
-    }))
+    }
+    setSelectedLoan(updatedLoan)
+    fetchLoans()
   }
+
   async function handleRollover(loan) {
     const { data: settings } = await supabase
       .from('settings').select('*').single()
-    const principal = loan.outstanding_balance
+    const previousOutstanding = loan.outstanding_balance
+    const newPrincipal = previousOutstanding
     const rate = settings.penalty_interest_rate
-    const interest = (principal * rate) / 100
-    const total = principal + interest
+    const interest = (newPrincipal * rate) / 100
+    const total = newPrincipal + interest
     const now = new Date()
     const dueDate = new Date(now)
     dueDate.setDate(dueDate.getDate() + settings.loan_duration_days)
-    const { data: newLoan, error: loanError } = await supabase
+    const newRolloverCount = (loan.rollover_count || 0) + 1
+
+    const { error: loanError } = await supabase
       .from('loans')
-      .insert({
-        application_id: loan.application_id,
-        applicant_id: loan.applicant_id,
-        guarantor_id: loan.guarantor_id,
-        principal,
+      .update({
+        principal: newPrincipal,
         interest_rate: rate,
         interest_amount: interest,
         total_owed: total,
         amount_paid: 0,
         outstanding_balance: total,
         loan_type: 'rollover',
-        disbursed_at: now.toISOString(),
+        rollover_count: newRolloverCount,
+        last_rolled_over_at: now.toISOString(),
         due_date: dueDate.toISOString(),
         status: 'active',
+        disbursed_at: now.toISOString(),
       })
-      .select()
-      .single()
+      .eq('id', loan.id)
+
     if (loanError) return
-    await supabase.from('loans')
-      .update({ status: 'rolled_over' }).eq('id', loan.id)
+
     await supabase.from('rollovers').insert({
-      original_loan_id: loan.id,
-      new_loan_id: newLoan.id,
-      carried_over_amount: principal,
-      penalty_rate: rate,
+      loan_id: loan.id,
+      rollover_number: newRolloverCount,
+      previous_outstanding: previousOutstanding,
+      new_principal: newPrincipal,
+      new_interest_rate: rate,
+      new_interest_amount: interest,
+      new_total_owed: total,
+      new_due_date: dueDate.toISOString(),
     })
+
     setSelectedLoan(null)
+    setRollovers([])
     fetchLoans()
   }
 
-  function getStatusBadge(status) {
-    const styles = {
-      active: 'bg-green-100 text-green-700',
-      overdue: 'bg-red-100 text-red-700',
-      settled: 'bg-gray-100 text-gray-600',
-      rolled_over: 'bg-orange-100 text-orange-700',
-    }
-    async function printReceipt(loan, payment) {
-  const { data: settings } = await supabase
-    .from('settings').select('*').single()
-
-  const receipt = `
-    GAMMA-LOBO ENTERPRISE
-    Payment Receipt
-    -------------------------
-    Loanee: ${loan.applicants?.full_name}
-    Amount Paid: ₦${Number(payment.amount_paid).toLocaleString()}
-    Payment Date: ${new Date(payment.payment_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
-    Outstanding Balance: ₦${Number(loan.outstanding_balance).toLocaleString()}
-    -------------------------
-    Repay to: ${settings.repayment_account_name}
-    Bank: ${settings.repayment_bank}
-    Account No: ${settings.repayment_account_no}
-    -------------------------
-    Thank you for your payment.
-  `
-
-  const win = window.open('', '_blank')
-  win.document.write(`<pre style="font-family:monospace;padding:20px;">${receipt}</pre>`)
-  win.print()
-  async function printLoanAgreement(loan) {
-  const { data: settings } = await supabase
-    .from('settings').select('*').single()
-
-  const agreement = `
-    ${settings.business_name}
-    LOAN AGREEMENT FORM
-    =========================================
-    Name: ${loan.applicants?.full_name}
-    Phone: ${loan.applicants?.phone}
-
-    Loan Amount: ₦${Number(loan.principal).toLocaleString()}
-    Interest Rate: ${loan.interest_rate}%
-    Duration: 30 days
-    Loan Date: ${new Date(loan.disbursed_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
-    Repayment Amount: ₦${Number(loan.total_owed).toLocaleString()}
-
-    REPAYMENT DATE
-    ${new Date(loan.due_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
-    Amount: ₦${Number(loan.total_owed).toLocaleString()}
-
-    LOAN PAID TO
-    Account No: ${loan.applicants?.account_number}
-    Account Name: ${loan.applicants?.account_name}
-    Bank: ${loan.applicants?.bank_name}
-    BVN: ${loan.applicants?.bvn}
-    NIN: ${loan.applicants?.nin}
-
-    Guarantor: ${loan.guarantors?.full_name}
-    Guarantor Phone: ${loan.guarantors?.phone}
-
-    REPAYABLE TO
-    Account Name: ${settings.repayment_account_name}
-    Bank: ${settings.repayment_bank}
-    Account No: ${settings.repayment_account_no}
-
-    PENALTY FOR MISSED PAYMENTS
-    If a loan repayment is not paid within the due date, it attracts an
-    automatic new loan term at 20% interest for 30 days, while
-    awaiting legal action.
-
-    By signing below, you agree to the above terms.
-
-    Signature: ___________________    Date: ___________
-  `
-
-  const win = window.open('', '_blank')
-  win.document.write(`<pre style="font-family:monospace;padding:30px;font-size:13px;">${agreement}</pre>`)
-  win.print()
-}
-}
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-600'}`}>
-        {status.replace('_', ' ').toUpperCase()}
-      </span>
-    )
+  function getWhatsAppRolloverLink(loan) {
+    const phone = loan.guarantors?.phone?.replace(/^0/, '234') || ''
+    const message = `Hello ${loan.guarantors?.full_name}, this is to notify you that the loan for ${loan.applicants?.full_name} on Gamma-lobo Enterprise has been rolled over due to non-payment. A new loan term of 30 days has started at 20% interest. Outstanding amount: ₦${Number(loan.outstanding_balance).toLocaleString()}. You remain the guarantor for this loan.`
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
   }
+
+  async function printReceipt(loan, payment) {
+    const { data: settings } = await supabase
+      .from('settings').select('*').single()
+    const receipt = `
+GAMMA-LOBO ENTERPRISE
+Payment Receipt
+-------------------------
+Loanee: ${loan.applicants?.full_name}
+Amount Paid: ₦${Number(payment.amount_paid).toLocaleString()}
+Payment Date: ${new Date(payment.payment_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
+Outstanding Balance: ₦${Number(loan.outstanding_balance).toLocaleString()}
+-------------------------
+Repay to: ${settings.repayment_account_name}
+Bank: ${settings.repayment_bank}
+Account No: ${settings.repayment_account_no}
+-------------------------
+Thank you for your payment.
+    `
+    const win = window.open('', '_blank')
+    win.document.write(`<pre style="font-family:monospace;padding:20px;">${receipt}</pre>`)
+    win.print()
+  }
+
+  async function printLoanAgreement(loan) {
+    const { data: settings } = await supabase
+      .from('settings').select('*').single()
+    const agreement = `
+${settings.business_name}
+LOAN AGREEMENT FORM
+=========================================
+Name: ${loan.applicants?.full_name}
+Phone: ${loan.applicants?.phone}
+
+Loan Amount: ₦${Number(loan.principal).toLocaleString()}
+Interest Rate: ${loan.interest_rate}%
+Duration: 30 days
+Loan Date: ${new Date(loan.disbursed_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
+Repayment Amount: ₦${Number(loan.total_owed).toLocaleString()}
+
+REPAYMENT DATE
+${new Date(loan.due_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}
+Amount: ₦${Number(loan.total_owed).toLocaleString()}
+
+LOAN PAID TO
+Account No: ${loan.applicants?.account_number}
+Account Name: ${loan.applicants?.account_name}
+Bank: ${loan.applicants?.bank_name}
+BVN: ${loan.applicants?.bvn}
+NIN: ${loan.applicants?.nin}
+
+Guarantor: ${loan.guarantors?.full_name}
+Guarantor Phone: ${loan.guarantors?.phone}
+
+REPAYABLE TO
+Account Name: ${settings.repayment_account_name}
+Bank: ${settings.repayment_bank}
+Account No: ${settings.repayment_account_no}
+
+PENALTY FOR MISSED PAYMENTS
+If a loan repayment is not paid within the due date, it attracts an
+automatic new loan term at 20% interest for 30 days.
+
+By signing below, you agree to the above terms.
+
+Signature: ___________________    Date: ___________
+    `
+    const win = window.open('', '_blank')
+    win.document.write(`<pre style="font-family:monospace;padding:30px;font-size:13px;">${agreement}</pre>`)
+    win.print()
+  }
+
+  function getStatusStyle(status) {
+    const styles = {
+      active: { background: '#dcfce7', color: '#16a34a' },
+      overdue: { background: '#fee2e2', color: '#dc2626' },
+      settled: { background: '#f1f5f9', color: '#64748b' },
+      rolled_over: { background: '#ffedd5', color: '#ea580c' },
+    }
+    return styles[status] || { background: '#f1f5f9', color: '#64748b' }
+  }
+
+  const filteredLoans = loans.filter(l => {
+    const matchesSearch = l.applicants?.full_name?.toLowerCase().includes(search.toLowerCase())
+    const matchesFilter = filter === 'all' || l.status === filter
+    return matchesSearch && matchesFilter
+  })
+
   return (
     <MainLayout>
       <div className="max-w-6xl mx-auto">
+
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Loans</h1>
-          <p className="text-gray-500 text-sm">Manage active and past loans</p>
+          <h1 className="text-2xl font-black text-gray-800">Loans</h1>
+          <p className="text-gray-400 text-sm mt-1">Manage active and past loans</p>
         </div>
 
         {approvedApps.length > 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-6">
-            <h2 className="text-sm font-semibold text-yellow-800 mb-4">
-              Approved Applications — Awaiting Disbursement
+          <div className="rounded-2xl p-5 mb-6 border border-yellow-200" style={{ background: '#fffbeb' }}>
+            <h2 className="text-sm font-bold text-yellow-800 mb-4 flex items-center gap-2">
+              <span>⏳</span> Approved Applications — Awaiting Disbursement
             </h2>
             <div className="space-y-3">
               {approvedApps.map(app => (
-                <div key={app.id} className="flex justify-between items-center bg-white rounded-lg p-4 shadow-sm">
+                <div key={app.id} className="flex justify-between items-center bg-white rounded-xl p-4 shadow-sm">
                   <div>
-                    <p className="font-medium text-gray-800">{app.applicants?.full_name}</p>
+                    <p className="font-semibold text-gray-800">{app.applicants?.full_name}</p>
                     <p className="text-sm text-gray-500">₦{Number(app.loan_amount_requested).toLocaleString()}</p>
                   </div>
-                 <button
-  onClick={() => createLoanFromApplication(app)}
-  disabled={disbursing === app.id}
-  className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50"
->
-  {disbursing === app.id ? 'Processing...' : 'Confirm Disbursement'}
-</button>
+                  <button
+                    onClick={() => createLoanFromApplication(app)}
+                    disabled={disbursing === app.id}
+                    className="text-white px-4 py-2 rounded-xl text-sm font-bold hover:opacity-90 transition disabled:opacity-50"
+                    style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5282)' }}
+                  >
+                    {disbursing === app.id ? 'Processing...' : 'Confirm Disbursement'}
+                  </button>
                 </div>
               ))}
             </div>
@@ -270,42 +299,83 @@ export default function Loans() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-           <div className="p-4 border-b">
-  <h2 className="text-sm font-semibold text-gray-700 mb-3">All Loans</h2>
-  <input
-    type="text"
-    placeholder="Search by name..."
-    value={search}
-    onChange={(e) => setSearch(e.target.value)}
-    className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-  />
-</div>
+
+          {/* Loans list */}
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="p-4 border-b space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-1 h-5 rounded-full" style={{ background: '#c9a84c' }}></div>
+                <h2 className="text-sm font-bold text-gray-700">All Loans</h2>
+              </div>
+              <input
+                type="text"
+                placeholder="Search by name..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="flex gap-2 flex-wrap">
+                {['all', 'active', 'overdue', 'settled'].map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setFilter(f)}
+                    className="px-3 py-1 rounded-lg text-xs font-semibold transition"
+                    style={filter === f
+                      ? { background: '#1e3a5f', color: 'white' }
+                      : { background: '#f1f5f9', color: '#64748b' }
+                    }
+                  >
+                    {f.charAt(0).toUpperCase() + f.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {loading ? (
-              <div className="p-6 text-center text-gray-500 text-sm">Loading...</div>
-            ) : loans.length === 0 ? (
-              <div className="p-6 text-center text-gray-500 text-sm">No loans yet</div>
+              <div className="p-10 text-center text-gray-400 text-sm">Loading...</div>
+            ) : filteredLoans.length === 0 ? (
+              <div className="p-10 text-center">
+                <p className="text-gray-300 text-4xl mb-2">💰</p>
+                <p className="text-gray-400 text-sm">No loans found</p>
+              </div>
             ) : (
               <div className="divide-y">
-               {loans.filter(l =>
-  l.applicants?.full_name?.toLowerCase().includes(search.toLowerCase())
-).map(loan => (
+                {filteredLoans.map(loan => (
                   <div
                     key={loan.id}
-                    onClick={() => setSelectedLoan(loan)}
+                    onClick={() => {
+                      setSelectedLoan(loan)
+                      fetchRollovers(loan.id)
+                      setMessage('')
+                    }}
                     className={`p-4 cursor-pointer hover:bg-gray-50 transition ${selectedLoan?.id === loan.id ? 'bg-blue-50' : ''}`}
                   >
                     <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium text-gray-800 text-sm">{loan.applicants?.full_name}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">₦{Number(loan.total_owed).toLocaleString()} total</p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          Due: {new Date(loan.due_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-gray-800 text-sm">{loan.applicants?.full_name}</p>
+                          {loan.rollover_count > 0 && (
+                            <span className="px-2 py-0.5 rounded-lg text-xs font-bold"
+                              style={{ background: '#ffedd5', color: '#ea580c' }}>
+                              🔄 Rollover x{loan.rollover_count}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-400">
+                          ₦{Number(loan.total_owed).toLocaleString()} total · Due:{' '}
+                          {new Date(loan.due_date).toLocaleDateString('en-NG', {
+                            day: 'numeric', month: 'short', year: 'numeric'
+                          })}
                         </p>
                       </div>
-                      <div className="text-right">
-                        {getStatusBadge(loan.status)}
-                        <p className="text-xs text-gray-500 mt-1">Outstanding: ₦{Number(loan.outstanding_balance).toLocaleString()}</p>
+                      <div className="text-right space-y-1">
+                        <span className="px-2 py-1 rounded-lg text-xs font-semibold"
+                          style={getStatusStyle(loan.status)}>
+                          {loan.status.replace('_', ' ').toUpperCase()}
+                        </span>
+                        <p className="text-xs text-gray-400">
+                          ₦{Number(loan.outstanding_balance).toLocaleString()} left
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -314,119 +384,167 @@ export default function Loans() {
             )}
           </div>
 
+          {/* Loan detail */}
           {selectedLoan && (
-            <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
+            <div className="bg-white rounded-2xl shadow-sm p-6 space-y-5 overflow-auto max-h-screen">
+
               <div className="flex justify-between items-start">
                 <div>
-                  <h2 className="font-bold text-gray-800">{selectedLoan.applicants?.full_name}</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {selectedLoan.loan_type === 'rollover' ? '⚠️ Rollover Loan' : 'Standard Loan'}
-                  </p>
+                  <h2 className="font-black text-gray-800 text-lg">{selectedLoan.applicants?.full_name}</h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="px-2 py-1 rounded-lg text-xs font-semibold"
+                      style={getStatusStyle(selectedLoan.status)}>
+                      {selectedLoan.status.replace('_', ' ').toUpperCase()}
+                    </span>
+                    {selectedLoan.rollover_count > 0 && (
+                      <span className="px-2 py-0.5 rounded-lg text-xs font-bold"
+                        style={{ background: '#ffedd5', color: '#ea580c' }}>
+                        🔄 Rollover x{selectedLoan.rollover_count}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                {getStatusBadge(selectedLoan.status)}
+                <button
+                  onClick={() => printLoanAgreement(selectedLoan)}
+                  className="text-xs px-3 py-2 rounded-xl font-semibold transition"
+                  style={{ background: '#f1f5f9', color: '#1e3a5f' }}
+                >
+                  Print Agreement
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-500">Principal</p>
-                  <p className="font-semibold text-gray-800">₦{Number(selectedLoan.principal).toLocaleString()}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl p-3" style={{ background: '#f8fafc' }}>
+                  <p className="text-xs text-gray-400">Principal</p>
+                  <p className="font-bold text-gray-800">₦{Number(selectedLoan.principal).toLocaleString()}</p>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-500">Interest ({selectedLoan.interest_rate}%)</p>
-                  <p className="font-semibold text-gray-800">₦{Number(selectedLoan.interest_amount).toLocaleString()}</p>
+                <div className="rounded-xl p-3" style={{ background: '#f8fafc' }}>
+                  <p className="text-xs text-gray-400">Interest ({selectedLoan.interest_rate}%)</p>
+                  <p className="font-bold text-gray-800">₦{Number(selectedLoan.interest_amount).toLocaleString()}</p>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-500">Total Owed</p>
-                  <p className="font-semibold text-gray-800">₦{Number(selectedLoan.total_owed).toLocaleString()}</p>
+                <div className="rounded-xl p-3" style={{ background: '#f8fafc' }}>
+                  <p className="text-xs text-gray-400">Total Owed</p>
+                  <p className="font-bold text-gray-800">₦{Number(selectedLoan.total_owed).toLocaleString()}</p>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-500">Amount Paid</p>
-                  <p className="font-semibold text-green-600">₦{Number(selectedLoan.amount_paid).toLocaleString()}</p>
+                <div className="rounded-xl p-3" style={{ background: '#f8fafc' }}>
+                  <p className="text-xs text-gray-400">Amount Paid</p>
+                  <p className="font-bold text-green-600">₦{Number(selectedLoan.amount_paid).toLocaleString()}</p>
                 </div>
-                <div className="bg-red-50 rounded-lg p-3 col-span-2">
-                  <p className="text-xs text-red-500">Outstanding Balance</p>
-                  <p className="font-bold text-red-600 text-lg">₦{Number(selectedLoan.outstanding_balance).toLocaleString()}</p>
+                <div className="col-span-2 rounded-xl p-3" style={{ background: '#fff1f2' }}>
+                  <p className="text-xs text-red-400">Outstanding Balance</p>
+                  <p className="font-black text-red-600 text-xl">₦{Number(selectedLoan.outstanding_balance).toLocaleString()}</p>
                 </div>
               </div>
 
-              <button
-  onClick={() => printLoanAgreement(selectedLoan)}
-  className="w-full bg-gray-100 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition"
->
-  Print Loan Agreement
-</button>
-<div className="space-y-1">
-                <p className="text-xs text-gray-500">
+              <div className="space-y-1">
+                <p className="text-xs text-gray-400">
                   Disbursed: {new Date(selectedLoan.disbursed_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-400">
                   Due: {new Date(selectedLoan.due_date).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </p>
-                <p className="text-xs text-gray-500">Guarantor: {selectedLoan.guarantors?.full_name}</p>
+                <p className="text-xs text-gray-400">Guarantor: {selectedLoan.guarantors?.full_name} · {selectedLoan.guarantors?.phone}</p>
               </div>
 
-              {selectedLoan.instalments?.length > 0 && (
+              {/* Rollover history */}
+              {rollovers.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Payment History</h3>
+                  <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                    <span>🔄</span> Rollover History
+                  </h3>
                   <div className="space-y-2">
-                    {selectedLoan.instalments.map(inst => (
-  <div key={inst.id} className="flex justify-between items-center bg-gray-50 rounded-lg p-3">
-    <div>
-      <p className="text-sm font-medium text-gray-700">₦{Number(inst.amount_paid).toLocaleString()}</p>
-      {inst.note && <p className="text-xs text-gray-400">{inst.note}</p>}
-    </div>
-    <div className="text-right">
-      <p className="text-xs text-gray-500">
-        {new Date(inst.payment_date).toLocaleDateString('en-NG', {
-          day: 'numeric', month: 'short', year: 'numeric'
-        })}
-      </p>
-      <button
-        onClick={() => printReceipt(selectedLoan, inst)}
-        className="text-xs text-blue-500 hover:text-blue-700 mt-1"
-      >
-        Print Receipt
-      </button>
-    </div>
-  </div>
-))}
+                    {rollovers.map(r => (
+                      <div key={r.id} className="rounded-xl p-3 border border-orange-100"
+                        style={{ background: '#fffbf5' }}>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-xs font-bold text-orange-600">Rollover #{r.rollover_number}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              Previous outstanding: ₦{Number(r.previous_outstanding).toLocaleString()}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              New total: ₦{Number(r.new_total_owed).toLocaleString()} at {r.new_interest_rate}%
+                            </p>
+                          </div>
+                          <p className="text-xs text-gray-400">
+                            {new Date(r.rolled_over_at).toLocaleDateString('en-NG', {
+                              day: 'numeric', month: 'short', year: 'numeric'
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
 
+              {/* Payment history */}
+              {selectedLoan.instalments?.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-bold text-gray-700 mb-3">Payment History</h3>
+                  <div className="space-y-2">
+                    {selectedLoan.instalments.map(inst => (
+                      <div key={inst.id} className="flex justify-between items-center rounded-xl p-3"
+                        style={{ background: '#f8fafc' }}>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-700">₦{Number(inst.amount_paid).toLocaleString()}</p>
+                          {inst.note && <p className="text-xs text-gray-400">{inst.note}</p>}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-400">
+                            {new Date(inst.payment_date).toLocaleDateString('en-NG', {
+                              day: 'numeric', month: 'short', year: 'numeric'
+                            })}
+                          </p>
+                          <button
+                            onClick={() => printReceipt(selectedLoan, inst)}
+                            className="text-xs font-medium mt-1"
+                            style={{ color: '#1e3a5f' }}
+                          >
+                            Print Receipt
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Record payment */}
               {selectedLoan.status === 'active' && (
                 <div className="border-t pt-4">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Record Payment</h3>
+                  <h3 className="text-sm font-bold text-gray-700 mb-3">Record Payment</h3>
                   <div className="space-y-3">
                     <input
                       type="number"
                       placeholder="Amount (₦)"
                       value={instalment.amount}
                       onChange={(e) => setInstalment({ ...instalment, amount: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2"
                     />
                     <input
                       type="date"
                       value={instalment.date}
                       onChange={(e) => setInstalment({ ...instalment, date: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2"
                     />
                     <input
                       type="text"
                       placeholder="Note (optional)"
                       value={instalment.note}
                       onChange={(e) => setInstalment({ ...instalment, note: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2"
                     />
                     {message && (
-                      <p className={`text-sm ${message.includes('Error') ? 'text-red-500' : 'text-green-600'}`}>
+                      <p className={`text-sm font-medium ${message.includes('Error') ? 'text-red-500' : 'text-green-600'}`}>
                         {message}
                       </p>
                     )}
                     <button
                       onClick={addInstalment}
                       disabled={adding}
-                      className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50"
+                      className="w-full text-white py-2 rounded-xl text-sm font-bold hover:opacity-90 transition disabled:opacity-50"
+                      style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5282)' }}
                     >
                       {adding ? 'Recording...' : 'Record Payment'}
                     </button>
@@ -434,23 +552,37 @@ export default function Loans() {
                 </div>
               )}
 
-              {selectedLoan.status === 'active' && selectedLoan.outstanding_balance > 0 && (
-                <div className="border-t pt-4">
+              {/* Rollover button */}
+              {(selectedLoan.status === 'active' || selectedLoan.status === 'overdue') && selectedLoan.outstanding_balance > 0 && (
+                <div className="border-t pt-4 space-y-2">
                   <button
                     onClick={() => {
-                      if (window.confirm('Roll over this loan? The outstanding balance will become a new loan at 20% interest.')) {
+                      if (window.confirm(`Roll over this loan?\n\nOutstanding: ₦${Number(selectedLoan.outstanding_balance).toLocaleString()}\nNew interest: 20%\nNew due date: 30 days from today\n\nThis will update the existing loan record.`)) {
                         handleRollover(selectedLoan)
                       }
                     }}
-                    className="w-full bg-orange-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-orange-600 transition"
+                    className="w-full text-white py-2 rounded-xl text-sm font-bold hover:opacity-90 transition"
+                    style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
                   >
-                    Roll Over Loan
+                    🔄 Roll Over Loan
                   </button>
-                  <p className="text-xs text-gray-400 mt-1 text-center">
-                    Use this when loan is overdue and unpaid
+                  {selectedLoan.guarantors?.phone && (
+                    
+                      href={getWhatsAppRolloverLink(selectedLoan)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-bold hover:opacity-90 transition"
+                      style={{ background: '#25d366', color: 'white' }}
+                    >
+                      📱 Notify Guarantor on WhatsApp
+                    </a>
+                  )}
+                  <p className="text-xs text-gray-400 text-center">
+                    Notify guarantor before or after rolling over
                   </p>
                 </div>
               )}
+
             </div>
           )}
         </div>
