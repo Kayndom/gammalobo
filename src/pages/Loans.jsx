@@ -171,10 +171,11 @@ export default function Loans() {
   }
 
   function getWhatsAppRolloverLink(loan) {
-    const phone = loan.guarantors?.phone?.replace(/^0/, '234') || ''
-    const message = `Hello ${loan.guarantors?.full_name}, this is to notify you that the loan for ${loan.applicants?.full_name} on Gamma-lobo Enterprise has been rolled over due to non-payment. A new loan term of 30 days has started at 20% interest. Outstanding amount: ₦${Number(loan.outstanding_balance).toLocaleString()}. You remain the guarantor for this loan.`
-    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
-  }
+  const rawPhone = loan.guarantors?.phone || ''
+  const phone = rawPhone.startsWith('0') ? '234' + rawPhone.slice(1) : rawPhone
+  const message = `Hello ${loan.guarantors?.full_name}, this is to notify you that the loan for ${loan.applicants?.full_name} on Gamma-lobo Enterprise has been rolled over due to non-payment. A new loan term of 30 days has started at 20% interest. Outstanding amount: ₦${Number(loan.outstanding_balance).toLocaleString()}. You remain the guarantor for this loan.`
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+}
 
   async function printReceipt(loan, payment) {
     const { data: settings } = await supabase
@@ -568,7 +569,7 @@ Signature: ___________________    Date: ___________
                   </button>
                   {selectedLoan.guarantors?.phone && (
                     
-                      href={getWhatsAppRolloverLink(selectedLoan)}
+                      <a href={getWhatsAppRolloverLink(selectedLoan)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-bold hover:opacity-90 transition"
