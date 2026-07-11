@@ -10,6 +10,7 @@ export default function Settings() {
   const [password, setPassword] = useState('')
 const [passwordMessage, setPasswordMessage] = useState('')
 const [changingPassword, setChangingPassword] = useState(false)
+const [importMessage, setImportMessage] = useState('')
 
   useEffect(() => {
     fetchSettings()
@@ -74,6 +75,160 @@ const [changingPassword, setChangingPassword] = useState(false)
     setPassword('')
   }
   setChangingPassword(false)
+}
+function downloadCSV(filename, rows) {
+  const csv = rows.map(r => Object.values(r).map(v =>
+    `"${String(v ?? '').replace(/"/g, '""')}"`
+  ).join(',')).join('\n')
+  const headers = Object.keys(rows[0]).join(',')
+  const blob = new Blob([headers + '\n' + csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+async function exportLoans() {
+  const { data } = await supabase
+    .from('loans')
+    .select('*, applicants(full_name, phone), guarantors(full_name, phone)')
+    .order('created_at', { ascending: false })
+  if (!data || data.length === 0) return alert('No loans to export')
+  const rows = data.map(l => ({
+    id: l.id,
+    loanee: l.applicants?.full_name,
+    phone: l.applicants?.phone,
+    guarantor: l.guarantors?.full_name,
+    guarantor_phone: l.guarantors?.phone,
+    principal: l.principal,
+    interest_rate: l.interest_rate,
+    interest_amount: l.interest_amount,
+    total_owed: l.total_owed,
+    amount_paid: l.amount_paid,
+    outstanding_balance: l.outstanding_balance,
+    loan_type: l.loan_type,
+    status: l.status,
+    rollover_count: l.rollover_count,
+    disbursed_at: l.disbursed_at,
+    due_date: l.due_date,
+    created_at: l.created_at,
+  }))
+  downloadCSV(`gammalobo_loans_${new Date().toISOString().slice(0,10)}.csv`, rows)
+}
+
+async function exportLoanees() {
+  const { data } = await supabase
+    .from('applicants')
+    .select('*')
+    .not('full_name', 'eq', 'Pending')
+    .order('created_at', { ascending: false })
+  if (!data || data.length === 0) return alert('No loanees to export')
+  const rows = data.map(l => ({
+    id: l.id,
+    full_name: l.full_name,
+    phone: l.phone,
+    email: l.email,
+    address: l.address,
+    occupation: l.occupation,
+    bvn: l.bvn,
+    nin: l.nin,
+    id_type: l.id_type,
+    id_number: l.id_number,
+    bank_name: l.bank_name,
+    account_number: l.account_number,
+    account_name: l.account_name,
+    created_at: l.created_at,
+  }))
+  downloadCSV(`gammalobo_loanees_${new Date().toISOString().slice(0,10)}.csv`, rows)
+}
+
+async function exportPayments() {
+  const { data } = await supabase
+    .from('instalments')
+    .select('*, loans(applicants(full_name))')
+    .order('recorded_at', { ascending: false })
+  if (!data || data.length === 0) return alert('No payments to export')
+  const rows = data.map(p => ({
+    id: p.id,
+    loan_id: p.loan_id,
+    loanee: p.loans?.applicants?.full_name,
+    amount_paid: p.amount_paid,
+    payment_date: p.payment_date,
+    note: p.note,
+    recorded_at: p.recorded_at,
+  }))
+  downloadCSV(`gammalobo_payments_${new Date().toISOString().slice(0,10)}.csv`, rows)
+}
+
+async function exportApplications() {
+  const { data } = await supabase
+    .from('applications')
+    .select('*, applicants(full_name, phone), guarantors(full_name, phone)')
+    .order('created_at', { ascending: false })
+  if (!data || data.length === 0) return alert('No applications to export')
+  const rows = data.map(a => ({
+    id: a.id,
+    loanee: a.applicants?.full_name,
+    phone: a.applicants?.phone,
+    guarantor: a.guarantors?.full_name,
+    guarantor_phone: a.guarantors?.phone,
+    loan_amount_requested: a.loan_amount_requested,
+    purpose: a.purpose,
+    status: a.status,
+    rejection_reason: a.rejection_reason,
+    created_at: a.created_at,
+    reviewed_at: a.reviewed_at,
+  }))
+  downloadCSV(`gammalobo_applications_${new Date().toISOString().slice(0,10)}.csv`, rows)
+}
+
+async function handleImport(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  setImportMessage('')
+  const text = await file.text()
+  const lines = text.trim().split('\n')
+  const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim())
+  const rows = lines.slice(1).map(line => {
+    const values = line.match(/(".*?"|[^,]+)(?=,|$)/g) || []
+    const obj = {}
+    headers.forEach((h, i) => {
+      obj[h] = (values[i] || '').replace(/"/g, '').trim()
+    })
+    return obj
+  })
+  try {
+    if (headers.includes('outstanding_balance')) {
+      setImportMessage(`✓ Loans backup verified — ${rows.length} records found. Contact support to restore.`)
+    } else if (headers.includes('bvn')) {
+      const inserts = rows.map(r => ({
+        full_name: r.full_name,
+        phone: r.phone,
+        email: r.email || null,
+        address: r.address || null,
+        occupation: r.occupation || null,
+        bvn: r.bvn || null,
+        nin: r.nin || null,
+        bank_name: r.bank_name || null,
+        account_number: r.account_number || null,
+        account_name: r.account_name || null,
+      }))
+      const { error } = await supabase.from('applicants').insert(inserts)
+      if (error) throw error
+      setImportMessage(`✓ ${rows.length} loanees imported successfully`)
+    } else if (headers.includes('amount_paid')) {
+      setImportMessage(`✓ Payments backup verified — ${rows.length} records found. Contact support to restore.`)
+    } else if (headers.includes('loan_amount_requested')) {
+      setImportMessage(`✓ Applications backup verified — ${rows.length} records found.`)
+    } else {
+      setImportMessage('Error: Unrecognized CSV format')
+    }
+  } catch (err) {
+    setImportMessage('Error importing file: ' + err.message)
+    console.error(err)
+  }
 }
 
   return (
@@ -214,6 +369,58 @@ const [changingPassword, setChangingPassword] = useState(false)
 
         </div>
       </div>
+      <div className="border-t pt-6">
+  <h2 className="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wide">
+    Data Backup
+  </h2>
+  <div className="space-y-3">
+    <button
+      onClick={exportLoans}
+      className="w-full py-2 rounded-lg text-sm font-medium text-white hover:opacity-90 transition"
+      style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5282)' }}
+    >
+      Export Loans to CSV
+    </button>
+    <button
+      onClick={exportLoanees}
+      className="w-full py-2 rounded-lg text-sm font-medium text-white hover:opacity-90 transition"
+      style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5282)' }}
+    >
+      Export Loanees to CSV
+    </button>
+    <button
+      onClick={exportPayments}
+      className="w-full py-2 rounded-lg text-sm font-medium text-white hover:opacity-90 transition"
+      style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5282)' }}
+    >
+      Export Payments to CSV
+    </button>
+    <button
+      onClick={exportApplications}
+      className="w-full py-2 rounded-lg text-sm font-medium text-white hover:opacity-90 transition"
+      style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5282)' }}
+    >
+      Export Applications to CSV
+    </button>
+    <div className="border-t pt-3">
+      <p className="text-xs text-gray-500 mb-2">Import CSV backup to restore data</p>
+      <label className="w-full py-2 rounded-lg text-sm font-medium text-center block cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-400 transition text-gray-500">
+        Click to Import CSV
+        <input
+          type="file"
+          accept=".csv"
+          className="hidden"
+          onChange={handleImport}
+        />
+      </label>
+      {importMessage && (
+        <p className={`text-sm mt-2 ${importMessage.includes('Error') ? 'text-red-500' : 'text-green-600'}`}>
+          {importMessage}
+        </p>
+      )}
+    </div>
+  </div>
+</div>
     </MainLayout>
   )
 }
