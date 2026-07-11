@@ -230,6 +230,91 @@ async function handleImport(e) {
     console.error(err)
   }
 }
+async function exportAll() {
+  const [
+    { data: loans },
+    { data: loanees },
+    { data: payments },
+    { data: applications }
+  ] = await Promise.all([
+    supabase.from('loans').select('*, applicants(full_name, phone), guarantors(full_name, phone)').order('created_at', { ascending: false }),
+    supabase.from('applicants').select('*').not('full_name', 'eq', 'Pending').order('created_at', { ascending: false }),
+    supabase.from('instalments').select('*, loans(applicants(full_name))').order('recorded_at', { ascending: false }),
+    supabase.from('applications').select('*, applicants(full_name, phone), guarantors(full_name, phone)').order('created_at', { ascending: false }),
+  ])
+
+  const date = new Date().toISOString().slice(0, 10)
+
+  const sections = []
+
+  if (loans?.length) {
+    sections.push('=== LOANS ===')
+    const headers = ['id','loanee','phone','guarantor','guarantor_phone','principal','interest_rate','interest_amount','total_owed','amount_paid','outstanding_balance','loan_type','status','rollover_count','disbursed_at','due_date','created_at']
+    sections.push(headers.join(','))
+    loans.forEach(l => {
+      sections.push([
+        l.id, l.applicants?.full_name, l.applicants?.phone,
+        l.guarantors?.full_name, l.guarantors?.phone,
+        l.principal, l.interest_rate, l.interest_amount,
+        l.total_owed, l.amount_paid, l.outstanding_balance,
+        l.loan_type, l.status, l.rollover_count,
+        l.disbursed_at, l.due_date, l.created_at
+      ].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
+    })
+    sections.push('')
+  }
+
+  if (loanees?.length) {
+    sections.push('=== LOANEES ===')
+    const headers = ['id','full_name','phone','email','address','occupation','bvn','nin','id_type','id_number','bank_name','account_number','account_name','created_at']
+    sections.push(headers.join(','))
+    loanees.forEach(l => {
+      sections.push([
+        l.id, l.full_name, l.phone, l.email, l.address,
+        l.occupation, l.bvn, l.nin, l.id_type, l.id_number,
+        l.bank_name, l.account_number, l.account_name, l.created_at
+      ].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
+    })
+    sections.push('')
+  }
+
+  if (payments?.length) {
+    sections.push('=== PAYMENTS ===')
+    const headers = ['id','loan_id','loanee','amount_paid','payment_date','note','recorded_at']
+    sections.push(headers.join(','))
+    payments.forEach(p => {
+      sections.push([
+        p.id, p.loan_id, p.loans?.applicants?.full_name,
+        p.amount_paid, p.payment_date, p.note, p.recorded_at
+      ].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
+    })
+    sections.push('')
+  }
+
+  if (applications?.length) {
+    sections.push('=== APPLICATIONS ===')
+    const headers = ['id','loanee','phone','guarantor','guarantor_phone','loan_amount_requested','status','rejection_reason','created_at','reviewed_at']
+    sections.push(headers.join(','))
+    applications.forEach(a => {
+      sections.push([
+        a.id, a.applicants?.full_name, a.applicants?.phone,
+        a.guarantors?.full_name, a.guarantors?.phone,
+        a.loan_amount_requested, a.status, a.rejection_reason,
+        a.created_at, a.reviewed_at
+      ].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
+    })
+  }
+
+  if (!sections.length) return alert('No data to export')
+
+  const blob = new Blob([sections.join('\n')], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `gammalobo_full_backup_${date}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
   return (
     <MainLayout>
@@ -402,6 +487,13 @@ async function handleImport(e) {
     >
       Export Applications to CSV
     </button>
+    <button
+  onClick={exportAll}
+  className="w-full py-2 rounded-lg text-sm font-medium text-white hover:opacity-90 transition"
+  style={{ background: 'linear-gradient(135deg, #c9a84c, #e6c97a)' }}
+>
+  Export Everything (Full Backup)
+</button>
     <div className="border-t pt-3">
       <p className="text-xs text-gray-500 mb-2">Import CSV backup to restore data</p>
       <label className="w-full py-2 rounded-lg text-sm font-medium text-center block cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-400 transition text-gray-500">
