@@ -71,7 +71,7 @@ export default function Applications() {
         .from('applications')
         .insert({
           applicant_id: applicant.id,
-          loan_amount_requested: parseFloat(loanAmount),
+         loan_amount_requested: parseFloat(loanAmount.replace(/,/g, '')),
           status: 'pending_loanee',
           loanee_token: loaneeToken,
         })
@@ -137,12 +137,17 @@ export default function Applications() {
           <h2 className="text-sm font-semibold text-gray-700 mb-4">Generate New Application Link</h2>
           <div className="flex gap-3">
             <input
-              type="number"
-              placeholder="Enter loan amount (₦)"
-              value={loanAmount}
-              onChange={(e) => setLoanAmount(e.target.value)}
-              className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+  type="text"
+  placeholder="Enter loan amount e.g. 120,000"
+  value={loanAmount}
+  onChange={(e) => {
+    const raw = e.target.value.replace(/,/g, '')
+    if (!isNaN(raw) || raw === '') {
+      setLoanAmount(raw === '' ? '' : Number(raw).toLocaleString())
+    }
+  }}
+  className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+/>
             <button
               onClick={generateApplicationLink}
               disabled={generating || !loanAmount}

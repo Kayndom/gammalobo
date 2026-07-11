@@ -86,7 +86,7 @@ export default function Loans() {
     if (!instalment.amount || !instalment.date) return
     setAdding(true)
     setMessage('')
-    const amount = parseFloat(instalment.amount)
+    const amount = parseFloat(instalment.amount.replace(/,/g, ''))
     const { error: instalmentError } = await supabase
       .from('instalments')
       .insert({
@@ -517,12 +517,17 @@ Signature: ___________________    Date: ___________
                   <h3 className="text-sm font-bold text-gray-700 mb-3">Record Payment</h3>
                   <div className="space-y-3">
                     <input
-                      type="number"
-                      placeholder="Amount (₦)"
-                      value={instalment.amount}
-                      onChange={(e) => setInstalment({ ...instalment, amount: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2"
-                    />
+  type="text"
+  placeholder="Amount e.g. 50,000"
+  value={instalment.amount}
+  onChange={(e) => {
+    const raw = e.target.value.replace(/,/g, '')
+    if (!isNaN(raw) || raw === '') {
+      setInstalment({ ...instalment, amount: raw === '' ? '' : Number(raw).toLocaleString() })
+    }
+  }}
+  className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2"
+/>
                     <input
                       type="date"
                       value={instalment.date}
