@@ -265,12 +265,16 @@ export default function Loans() {
             <div class="outstanding-value">₦${Number(loan.outstanding_balance).toLocaleString()}</div>
           </div>
 
-          <div class="repay-box">
-            <div class="repay-title">Repay Remaining Balance To</div>
-            <div class="repay-text">${settings.repayment_account_name}</div>
-            <div class="repay-text">${settings.repayment_bank} · ${settings.repayment_account_no}</div>
-          </div>
-        </div>
+          ${Number(loan.outstanding_balance) <= 0 ? `
+<div class="repay-box" style="background: #f0fdf4; border-color: #86efac;">
+  <div class="repay-title" style="color: #16a34a;">🎉 Loan Fully Repaid</div>
+  <div class="repay-text" style="color: #15803d;">Congratulations! This loan has been completely settled. Thank you for your prompt repayment.</div>
+</div>` : `
+<div class="repay-box">
+  <div class="repay-title">Repay Remaining Balance To</div>
+  <div class="repay-text">${settings.repayment_account_name}</div>
+  <div class="repay-text">${settings.repayment_bank} · ${settings.repayment_account_no}</div>
+</div>`}
 
         <div class="receipt-footer">
           <div class="footer-text">Thank you for your payment</div>
