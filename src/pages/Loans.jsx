@@ -2,6 +2,74 @@ import { useState, useEffect } from 'react'
 import MainLayout from '../layouts/MainLayout'
 import { supabase } from '../lib/supabase'
 
+function LoanLedger({ loanId, loan, onPrint }) {
+  const [logs, setLogs] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchLogs() {
+      const { data } = await supabase
+        .from('loan_logs')
+        .select('*')
+        .eq('loan_id', loanId)
+        .order('created_at', { ascending: true })
+      if (data) setLogs(data)
+      setLoading(false)
+    }
+    fetchLogs()
+  }, [loanId])
+
+  const activityStyles = {
+    disbursement: { color: '#1e3a5f', bg: '#eff6ff', label: '🏦 Loan Disbursed' },
+    payment: { color: '#16a34a', bg: '#f0fdf4', label: '💳 Payment Received' },
+    settled: { color: '#16a34a', bg: '#f0fdf4', label: '✅ Loan Settled' },
+    overdue: { color: '#dc2626', bg: '#fef2f2', label: '⚠️ Loan Overdue' },
+    rollover: { color: '#ea580c', bg: '#fff7ed', label: '🔄 Loan Rolled Over' },
+  }
+
+  return (
+    <div className="border-t pt-4">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="text-sm font-bold text-gray-700">Loan Ledger</h3>
+        <button
+          onClick={onPrint}
+          className="text-xs px-3 py-1 rounded-lg font-semibold"
+          style={{ background: '#f1f5f9', color: '#1e3a5f' }}
+        >
+          Print Ledger
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="text-xs text-gray-400">Loading ledger...</p>
+      ) : logs.length === 0 ? (
+        <p className="text-xs text-gray-400">No activity logged yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {logs.map((log, index) => {
+            const style = activityStyles[log.activity_type] || { color: '#64748b', bg: '#f8fafc', label: log.activity_type }
+            return (
+              <div key={log.id} className="rounded-xl p-3" style={{ background: style.bg }}>
+                <div className="flex justify-between items-start mb-1">
+                  <p className="text-xs font-bold" style={{ color: style.color }}>{style.label}</p>
+                  <p className="text-xs text-gray-400">
+                    {new Date(log.created_at).toLocaleDateString('en-NG', {
+                      day: 'numeric', month: 'short', year: 'numeric'
+                    })}
+                  </p>
+                </div>
+                <p className="text-xs text-gray-600 leading-relaxed">{log.description}</p>
+                <p className="text-xs font-bold mt-1" style={{ color: style.color }}>
+                  Balance: ₦{Number(log.balance_after).toLocaleString()}
+                </p>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 export default function Loans() {
   const [loans, setLoans] = useState([])
   const [loading, setLoading] = useState(true)
@@ -78,7 +146,24 @@ export default function Loans() {
       due_date: dueDate.toISOString(),
       status: 'active',
     })
-    if (!error) fetchLoans()
+    if (!error) {
+  const { data: newLoan } = await supabase
+    .from('loans')
+    .select('*')
+    .eq('application_id', app.id)
+    .single()
+
+  if (newLoan) {
+    await supabase.from('loan_logs').insert({
+      loan_id: newLoan.id,
+      activity_type: 'disbursement',
+      description: `Loan disbursed to ${app.applicants?.full_name}. Principal: ₦${Number(principal).toLocaleString()}, Interest (${rate}%): ₦${Number(interest).toLocaleString()}, Total Owed: ₦${Number(total).toLocaleString()}, Due Date: ${dueDate.toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}`,
+      amount: total,
+      balance_after: total,
+    })
+  }
+  fetchLoans()
+}
     setDisbursing(null)
   }
 
@@ -108,6 +193,23 @@ export default function Loans() {
       outstanding_balance: newOutstanding <= 0 ? 0 : newOutstanding,
       status: newStatus,
     }).eq('id', selectedLoan.id)
+    await supabase.from('loan_logs').insert({
+  loan_id: selectedLoan.id,
+  activity_type: 'payment',
+  description: `Payment received: ₦${Number(amount).toLocaleString()}${instalment.note ? ` — ${instalment.note}` : ''}`,
+  amount: amount,
+  balance_after: newOutstanding <= 0 ? 0 : newOutstanding,
+})
+
+if (newStatus === 'settled') {
+  await supabase.from('loan_logs').insert({
+    loan_id: selectedLoan.id,
+    activity_type: 'settled',
+    description: 'Loan fully settled. All payments received.',
+    amount: 0,
+    balance_after: 0,
+  })
+}
     setInstalment({ amount: '', date: '', note: '' })
     setMessage('Payment recorded successfully')
     setAdding(false)
@@ -164,7 +266,22 @@ export default function Loans() {
       new_total_owed: total,
       new_due_date: dueDate.toISOString(),
     })
-
+await supabase.from('loan_logs').insert([
+  {
+    loan_id: loan.id,
+    activity_type: 'overdue',
+    description: `Loan became overdue. Outstanding balance at rollover: ₦${Number(previousOutstanding).toLocaleString()}`,
+    amount: previousOutstanding,
+    balance_after: previousOutstanding,
+  },
+  {
+    loan_id: loan.id,
+    activity_type: 'rollover',
+    description: `Loan rolled over. New principal: ₦${Number(newPrincipal).toLocaleString()}, Penalty interest (${rate}%): ₦${Number(interest).toLocaleString()}, New total: ₦${Number(total).toLocaleString()}, New due date: ${dueDate.toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}`,
+    amount: total,
+    balance_after: total,
+  }
+])
     setSelectedLoan(null)
     setRollovers([])
     fetchLoans()
@@ -470,7 +587,145 @@ export default function Loans() {
     const matchesFilter = filter === 'all' || l.status === filter
     return matchesSearch && matchesFilter
   })
+async function printLedger(loan) {
+  const { data: logs } = await supabase
+    .from('loan_logs')
+    .select('*')
+    .eq('loan_id', loan.id)
+    .order('created_at', { ascending: true })
 
+  const { data: settings } = await supabase
+    .from('settings').select('*').single()
+
+  const activityColors = {
+    disbursement: '#1e3a5f',
+    payment: '#16a34a',
+    settled: '#16a34a',
+    overdue: '#dc2626',
+    rollover: '#ea580c',
+  }
+
+  const activityLabels = {
+    disbursement: '🏦 Loan Disbursed',
+    payment: '💳 Payment Received',
+    settled: '✅ Loan Settled',
+    overdue: '⚠️ Loan Overdue',
+    rollover: '🔄 Loan Rolled Over',
+  }
+
+  const win = window.open('', '_blank')
+  win.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Loan Ledger - ${loan.applicants?.full_name}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; color: #1a1a1a; background: white; padding: 40px; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #1e3a5f; padding-bottom: 20px; margin-bottom: 30px; }
+        .logo-block { display: flex; align-items: center; gap: 12px; }
+        .logo-circle { width: 50px; height: 50px; border-radius: 12px; background: linear-gradient(135deg, #1e3a5f, #2d5282); display: flex; align-items: center; justify-content: center; color: #c9a84c; font-size: 24px; font-weight: 900; }
+        .business-name { font-size: 20px; font-weight: 900; color: #1e3a5f; }
+        .doc-title { font-size: 13px; font-weight: 700; color: #1e3a5f; text-transform: uppercase; letter-spacing: 1px; text-align: right; }
+        .doc-date { font-size: 11px; color: #64748b; margin-top: 4px; text-align: right; }
+        .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 30px; }
+        .summary-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+        .summary-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+        .summary-value { font-size: 16px; font-weight: 800; color: #1a1a1a; margin-top: 4px; }
+        .loanee-section { background: linear-gradient(135deg, #1e3a5f, #2d5282); border-radius: 12px; padding: 16px; margin-bottom: 24px; color: white; }
+        .loanee-name { font-size: 18px; font-weight: 900; }
+        .loanee-details { font-size: 12px; opacity: 0.8; margin-top: 4px; }
+        .ledger-title { font-size: 13px; font-weight: 700; color: #1e3a5f; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+        .log-entry { display: flex; gap: 16px; margin-bottom: 16px; }
+        .log-line { display: flex; flex-direction: column; align-items: center; }
+        .log-dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+        .log-connector { width: 2px; flex: 1; background: #e2e8f0; margin-top: 4px; }
+        .log-content { flex: 1; padding-bottom: 16px; }
+        .log-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+        .log-activity { font-size: 12px; font-weight: 700; }
+        .log-date { font-size: 11px; color: #94a3b8; }
+        .log-description { font-size: 11px; color: #64748b; line-height: 1.6; }
+        .log-balance { font-size: 12px; font-weight: 700; color: #1e3a5f; margin-top: 4px; }
+        .footer { margin-top: 30px; padding-top: 16px; border-top: 2px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; }
+        @media print { body { padding: 20px; } }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div class="logo-block">
+          <div class="logo-circle">G</div>
+          <div>
+            <div class="business-name">${settings.business_name}</div>
+            <div style="font-size:11px;color:#64748b;">Loan Management</div>
+          </div>
+        </div>
+        <div>
+          <div class="doc-title">Loan Ledger</div>
+          <div class="doc-date">Generated: ${new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+        </div>
+      </div>
+
+      <div class="loanee-section">
+        <div class="loanee-name">${loan.applicants?.full_name}</div>
+        <div class="loanee-details">
+          Phone: ${loan.applicants?.phone} &nbsp;|&nbsp;
+          Guarantor: ${loan.guarantors?.full_name} (${loan.guarantors?.phone})
+        </div>
+      </div>
+
+      <div class="summary">
+        <div class="summary-card">
+          <div class="summary-label">Current Principal</div>
+          <div class="summary-value">₦${Number(loan.principal).toLocaleString()}</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Total Owed</div>
+          <div class="summary-value">₦${Number(loan.total_owed).toLocaleString()}</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Total Paid</div>
+          <div class="summary-value" style="color:#16a34a;">₦${Number(loan.amount_paid).toLocaleString()}</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Outstanding</div>
+          <div class="summary-value" style="color:${Number(loan.outstanding_balance) <= 0 ? '#16a34a' : '#dc2626'};">
+            ₦${Number(loan.outstanding_balance).toLocaleString()}
+          </div>
+        </div>
+      </div>
+
+      <div class="ledger-title">Transaction History</div>
+
+      ${logs && logs.length > 0 ? logs.map((log, index) => `
+        <div class="log-entry">
+          <div class="log-line">
+            <div class="log-dot" style="background:${activityColors[log.activity_type] || '#94a3b8'};"></div>
+            ${index < logs.length - 1 ? '<div class="log-connector"></div>' : ''}
+          </div>
+          <div class="log-content">
+            <div class="log-header">
+              <div class="log-activity" style="color:${activityColors[log.activity_type] || '#94a3b8'};">
+                ${activityLabels[log.activity_type] || log.activity_type}
+              </div>
+              <div class="log-date">${new Date(log.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+            </div>
+            <div class="log-description">${log.description}</div>
+            <div class="log-balance">Balance after: ₦${Number(log.balance_after).toLocaleString()}</div>
+          </div>
+        </div>
+      `).join('') : '<p style="color:#94a3b8;font-size:12px;">No activity logged yet.</p>'}
+
+      <div class="footer">
+        <span>${settings.business_name} · ${settings.repayment_bank} · ${settings.repayment_account_no}</span>
+        <span>Status: ${loan.status.replace('_', ' ').toUpperCase()} ${loan.rollover_count > 0 ? `· Rolled Over ${loan.rollover_count}x` : ''}</span>
+      </div>
+
+      <script>window.onload = function() { window.print() }</script>
+    </body>
+    </html>
+  `)
+  win.document.close()
+}
   return (
     <MainLayout>
       <div className="max-w-6xl mx-auto">
@@ -654,6 +909,7 @@ export default function Loans() {
                 <p className="text-xs text-gray-400">Guarantor: {selectedLoan.guarantors?.full_name} · {selectedLoan.guarantors?.phone}</p>
               </div>
 
+             <LoanLedger loanId={selectedLoan.id} loan={selectedLoan} onPrint={() => printLedger(selectedLoan)} />
               {/* Rollover history */}
               {rollovers.length > 0 && (
                 <div>
