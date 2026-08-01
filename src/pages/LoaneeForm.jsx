@@ -27,17 +27,25 @@ export default function LoaneeForm() {
     guarantor_email: '',
   })
 
-  useEffect(() => {
-    async function fetchSettings() {
-      const { data } = await supabase
-        .from('settings')
-        .select('*')
-        .single()
-      if (data) setSettings(data)
-    }
-    fetchSettings()
-  }, [])
+ const [applicationData, setApplicationData] = useState(null)
 
+useEffect(() => {
+  async function fetchData() {
+    const { data: settingsData } = await supabase
+      .from('settings')
+      .select('*')
+      .single()
+    if (settingsData) setSettings(settingsData)
+
+    const { data: appData } = await supabase
+      .from('applications')
+      .select('custom_interest_rate, custom_duration_days')
+      .eq('loanee_token', token)
+      .single()
+    if (appData) setApplicationData(appData)
+  }
+  fetchData()
+}, [token])
   function handleChange(field, value) {
     setForm({ ...form, [field]: value })
   }
@@ -383,10 +391,10 @@ export default function LoaneeForm() {
           <div className="border-t pt-6">
             <div className="bg-gray-50 rounded-lg p-4 text-xs text-gray-600 space-y-2">
               <p className="font-semibold text-gray-700">Terms and Conditions</p>
-              <p>Interest rate: {settings?.standard_interest_rate ?? 18}% per month</p>
-              <p>Duration: {settings?.loan_duration_days ?? 30} days</p>
-              <p>Penalty for missed payment: {settings?.penalty_interest_rate ?? 20}% interest on outstanding balance, new {settings?.loan_duration_days ?? 30}-day term applies automatically.</p>
-              <p>By submitting this form you agree to these terms.</p>
+              <p>Interest rate: {applicationData?.custom_interest_rate ?? settings?.standard_interest_rate ?? 18}% per month</p>
+<p>Duration: {applicationData?.custom_duration_days ?? settings?.loan_duration_days ?? 30} days</p>
+<p>Penalty for missed payment: {settings?.penalty_interest_rate ?? 20}% interest on outstanding balance, new {settings?.loan_duration_days ?? 30}-day term applies automatically.</p>
+<p>By submitting this form you agree to these terms.</p>
             </div>
           </div>
 
