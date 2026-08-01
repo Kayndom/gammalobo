@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import MainLayout from '../layouts/MainLayout'
 import { supabase } from '../lib/supabase'
+import { logApplicationToSheets, logLoaneeToSheets } from '../lib/sheets'
 
 function ActiveLoanWarning({ applicantId }) {
   const [hasActive, setHasActive] = useState(false)
@@ -95,11 +96,20 @@ export default function Applications() {
   }
 
   async function updateStatus(id, status, rejectionReason = null) {
-    const update = { status, reviewed_at: new Date().toISOString() }
-    if (rejectionReason) update.rejection_reason = rejectionReason
-    await supabase.from('applications').update(update).eq('id', id)
-    fetchApplications()
+  const update = { status, reviewed_at: new Date().toISOString() }
+  if (rejectionReason) update.rejection_reason = rejectionReason
+  await supabase.from('applications').update(update).eq('id', id)
+
+  if (status === 'approved') {
+    const app = applications.find(a => a.id === id)
+    if (app) {
+      await logApplicationToSheets(app, app.applicants, app.guarantors)
+      await logLoaneeToSheets(app.applicants)
+    }
   }
+
+  fetchApplications()
+}
 
   function copyLink(link) {
     navigator.clipboard.writeText(link)

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import MainLayout from '../layouts/MainLayout'
 import { supabase } from '../lib/supabase'
+import { logLoanToSheets, logPaymentToSheets } from '../lib/sheets'
 
 function LoanLedger({ loanId, loan, onPrint }) {
   const [logs, setLogs] = useState([])
@@ -155,6 +156,7 @@ const duration = app.custom_duration_days || settings.loan_duration_days
     .single()
 
   if (newLoan) {
+    await logLoanToSheets(newLoan, app.applicants, app.applicants?.guarantors)
     await supabase.from('loan_logs').insert({
       loan_id: newLoan.id,
       activity_type: 'disbursement',
@@ -211,7 +213,15 @@ if (newStatus === 'settled') {
     balance_after: 0,
   })
 }
-    setInstalment({ amount: '', date: '', note: '' })
+    await logPaymentToSheets({
+  id: Date.now().toString(),
+  loan_id: selectedLoan.id,
+  amount_paid: amount,
+  payment_date: instalment.date,
+  note: instalment.note,
+  recorded_at: new Date().toISOString(),
+}, selectedLoan.applicants?.full_name)
+setInstalment({ amount: '', date: '', note: '' })
     setMessage('Payment recorded successfully')
     setAdding(false)
     const updatedLoan = {
