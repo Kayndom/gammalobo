@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
@@ -8,17 +8,6 @@ export default function LoaneeForm() {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
   const [settings, setSettings] = useState(null)
-
-useEffect(() => {
-  async function fetchSettings() {
-    const { data } = await supabase
-      .from('settings')
-      .select('*')
-      .single()
-    if (data) setSettings(data)
-  }
-  fetchSettings()
-}, [])
 
   const [form, setForm] = useState({
     full_name: '',
@@ -38,6 +27,17 @@ useEffect(() => {
     guarantor_email: '',
   })
 
+  useEffect(() => {
+    async function fetchSettings() {
+      const { data } = await supabase
+        .from('settings')
+        .select('*')
+        .single()
+      if (data) setSettings(data)
+    }
+    fetchSettings()
+  }, [])
+
   function handleChange(field, value) {
     setForm({ ...form, [field]: value })
   }
@@ -55,6 +55,18 @@ useEffect(() => {
 
       if (appError || !application) {
         setError('Invalid or expired application link.')
+        setLoading(false)
+        return
+      }
+
+      if (!application.status) {
+        setError('Invalid application. Please contact Regnum Ventures.')
+        setLoading(false)
+        return
+      }
+
+      if (application.status === 'cancelled') {
+        setError('This application has been cancelled.')
         setLoading(false)
         return
       }
@@ -176,9 +188,19 @@ useEffect(() => {
       <div className="max-w-xl mx-auto">
 
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Regnum Ventures </h1>
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-3"
+            style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5282)' }}>
+            <span className="text-2xl font-black text-white">R</span>
+          </div>
+          <h1 className="text-2xl font-black text-gray-800">Regnum Ventures</h1>
           <p className="text-gray-500 text-sm mt-1">Loan Application Form</p>
         </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 text-center">
+            <p className="text-red-600 text-sm font-medium">{error}</p>
+          </div>
+        )}
 
         <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
 
@@ -360,22 +382,19 @@ useEffect(() => {
 
           <div className="border-t pt-6">
             <div className="bg-gray-50 rounded-lg p-4 text-xs text-gray-600 space-y-2">
-  <p className="font-semibold text-gray-700">Terms and Conditions</p>
-  <p>Interest rate: {settings?.standard_interest_rate ?? 18}% per month</p>
-  <p>Duration: {settings?.loan_duration_days ?? 30} days</p>
-  <p>Penalty for missed payment: {settings?.penalty_interest_rate ?? 20}% interest on outstanding balance, new {settings?.loan_duration_days ?? 30}-day term applies automatically.</p>
-  <p>By submitting this form you agree to these terms.</p>
-</div>
+              <p className="font-semibold text-gray-700">Terms and Conditions</p>
+              <p>Interest rate: {settings?.standard_interest_rate ?? 18}% per month</p>
+              <p>Duration: {settings?.loan_duration_days ?? 30} days</p>
+              <p>Penalty for missed payment: {settings?.penalty_interest_rate ?? 20}% interest on outstanding balance, new {settings?.loan_duration_days ?? 30}-day term applies automatically.</p>
+              <p>By submitting this form you agree to these terms.</p>
+            </div>
           </div>
-
-          {error && (
-            <p className="text-red-500 text-sm">{error}</p>
-          )}
 
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50"
+            className="w-full text-white py-3 rounded-xl text-sm font-bold hover:opacity-90 transition disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5282)' }}
           >
             {loading ? 'Submitting...' : 'Submit Application'}
           </button>
