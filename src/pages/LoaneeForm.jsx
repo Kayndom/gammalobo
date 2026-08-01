@@ -164,7 +164,7 @@ export default function LoaneeForm() {
       <div className="max-w-xl mx-auto">
 
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Gamma-lobo Enterprise</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Regnum Ventures </h1>
           <p className="text-gray-500 text-sm mt-1">Loan Application Form</p>
         </div>
 

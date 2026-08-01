@@ -290,7 +290,7 @@ await supabase.from('loan_logs').insert([
   function getWhatsAppRolloverLink(loan) {
   const rawPhone = loan.guarantors?.phone || ''
   const phone = rawPhone.startsWith('0') ? '234' + rawPhone.slice(1) : rawPhone
-  const message = `Hello ${loan.guarantors?.full_name}, this is to notify you that the loan for ${loan.applicants?.full_name} on Gamma-lobo Enterprise has been rolled over due to non-payment. A new loan term of 30 days has started at 20% interest. Outstanding amount: ₦${Number(loan.outstanding_balance).toLocaleString()}. You remain the guarantor for this loan.`
+  const message = `Hello ${loan.guarantors?.full_name}, this is to notify you that the loan for ${loan.applicants?.full_name} on Regnum Ventures  has been rolled over due to non-payment. A new loan term of 30 days has started at 20% interest. Outstanding amount: ₦${Number(loan.outstanding_balance).toLocaleString()}. You remain the guarantor for this loan.`
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
 }
 

@@ -30,8 +30,8 @@ export default function Login() {
             style={{ background: 'linear-gradient(135deg, #c9a84c, #e6c97a)' }}>
             <span className="text-2xl font-black text-white">G</span>
           </div>
-          <h1 className="text-3xl font-black text-white tracking-tight">Gamma-lobo</h1>
-          <p className="text-blue-200 text-sm mt-1 font-medium">Enterprise Loan Management</p>
+          <h1 className="text-3xl font-black text-white tracking-tight">Regnum</h1>
+          <p className="text-blue-200 text-sm mt-1 font-medium">Ventures  Loan Management</p>
         </div>
 
         {/* Card */}
@@ -83,7 +83,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-blue-200 text-xs mt-6">
-          Gamma-lobo Enterprise © {new Date().getFullYear()}
+          Regnum Ventures  © {new Date().getFullYear()}
         </p>
       </div>
     </div>

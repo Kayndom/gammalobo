@@ -115,7 +115,7 @@ async function exportLoans() {
     due_date: l.due_date,
     created_at: l.created_at,
   }))
-  downloadCSV(`gammalobo_loans_${new Date().toISOString().slice(0,10)}.csv`, rows)
+  downloadCSV(`regnum_loans_${new Date().toISOString().slice(0,10)}.csv`, rows)
 }
 
 async function exportLoanees() {
@@ -141,7 +141,7 @@ async function exportLoanees() {
     account_name: l.account_name,
     created_at: l.created_at,
   }))
-  downloadCSV(`gammalobo_loanees_${new Date().toISOString().slice(0,10)}.csv`, rows)
+  downloadCSV(`regnum_loanees_${new Date().toISOString().slice(0,10)}.csv`, rows)
 }
 
 async function exportPayments() {
@@ -159,7 +159,7 @@ async function exportPayments() {
     note: p.note,
     recorded_at: p.recorded_at,
   }))
-  downloadCSV(`gammalobo_payments_${new Date().toISOString().slice(0,10)}.csv`, rows)
+  downloadCSV(`regnum_payments_${new Date().toISOString().slice(0,10)}.csv`, rows)
 }
 
 async function exportApplications() {
@@ -181,7 +181,7 @@ async function exportApplications() {
     created_at: a.created_at,
     reviewed_at: a.reviewed_at,
   }))
-  downloadCSV(`gammalobo_applications_${new Date().toISOString().slice(0,10)}.csv`, rows)
+  downloadCSV(`regnum_applications_${new Date().toISOString().slice(0,10)}.csv`, rows)
 }
 
 async function handleImport(e) {
@@ -311,7 +311,7 @@ async function exportAll() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `gammalobo_full_backup_${date}.csv`
+  a.download = `regnum_full_backup_${date}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }

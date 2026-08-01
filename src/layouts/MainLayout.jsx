@@ -46,7 +46,7 @@ export default function MainLayout({ children }) {
               G
             </div>
             <div>
-              <h1 className="text-white font-bold text-base leading-tight">Gamma-lobo</h1>
+              <h1 className="text-white font-bold text-base leading-tight">Regnum</h1>
               <p className="text-blue-300 text-xs">Loan Management</p>
             </div>
           </div>
@@ -112,7 +112,7 @@ export default function MainLayout({ children }) {
               style={{ background: 'linear-gradient(135deg, #c9a84c, #e6c97a)' }}>
               G
             </div>
-            <h1 className="text-white font-bold text-base">Gamma-lobo</h1>
+            <h1 className="text-white font-bold text-base">Regnum</h1>
           </div>
         </div>
 
