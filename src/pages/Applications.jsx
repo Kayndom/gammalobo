@@ -20,7 +20,6 @@ function ActiveLoanWarning({ applicantId }) {
 
   if (!hasActive) return null
 
-  
   return (
     <p className="text-xs text-orange-500 font-medium mt-1">
       ⚠️ This loanee has an active loan
@@ -29,11 +28,6 @@ function ActiveLoanWarning({ applicantId }) {
 }
 
 export default function Applications() {
-  function getWhatsAppLink(app) {
-  const phone = app.guarantors?.phone?.replace(/^0/, '234') || ''
-  const message = `Hello ${app.guarantors?.full_name}, you have been listed as a guarantor for a loan application on Regnum Ventures . Please complete your guarantor form here: ${window.location.origin}/guarantor/${app.guarantor_token}`
-  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
-}
   const [applications, setApplications] = useState([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
@@ -42,6 +36,8 @@ export default function Applications() {
   const [showNewLink, setShowNewLink] = useState(false)
   const [copiedLink, setCopiedLink] = useState('')
   const [search, setSearch] = useState('')
+  const [customRate, setCustomRate] = useState('')
+  const [customDuration, setCustomDuration] = useState('')
 
   useEffect(() => {
     fetchApplications()
@@ -54,6 +50,13 @@ export default function Applications() {
       .order('created_at', { ascending: false })
     if (data) setApplications(data)
     setLoading(false)
+  }
+
+  function getWhatsAppLink(app) {
+    const rawPhone = app.guarantors?.phone || ''
+    const phone = rawPhone.startsWith('0') ? '234' + rawPhone.slice(1) : rawPhone
+    const message = `Hello ${app.guarantors?.full_name}, you have been listed as a guarantor for a loan application on Regnum Ventures. Please complete your guarantor form here: ${window.location.origin}/guarantor/${app.guarantor_token}`
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
   }
 
   async function generateApplicationLink() {
@@ -71,15 +74,19 @@ export default function Applications() {
         .from('applications')
         .insert({
           applicant_id: applicant.id,
-         loan_amount_requested: parseFloat(loanAmount.replace(/,/g, '')),
+          loan_amount_requested: parseFloat(loanAmount.replace(/,/g, '')),
           status: 'pending_loanee',
           loanee_token: loaneeToken,
+          custom_interest_rate: customRate ? parseFloat(customRate) : null,
+          custom_duration_days: customDuration ? parseInt(customDuration) : null,
         })
       if (appError) throw appError
       const link = `${window.location.origin}/apply/${loaneeToken}`
       setNewLink(link)
       setShowNewLink(true)
       setLoanAmount('')
+      setCustomRate('')
+      setCustomDuration('')
       fetchApplications()
     } catch (err) {
       console.error(err)
@@ -135,27 +142,55 @@ export default function Applications() {
 
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-4">Generate New Application Link</h2>
-          <div className="flex gap-3">
+          <div className="space-y-3">
             <input
-  type="text"
-  placeholder="Enter loan amount e.g. 120,000"
-  value={loanAmount}
-  onChange={(e) => {
-    const raw = e.target.value.replace(/,/g, '')
-    if (!isNaN(raw) || raw === '') {
-      setLoanAmount(raw === '' ? '' : Number(raw).toLocaleString())
-    }
-  }}
-  className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-/>
+              type="text"
+              placeholder="Enter loan amount e.g. 120,000"
+              value={loanAmount}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/,/g, '')
+                if (!isNaN(raw) || raw === '') {
+                  setLoanAmount(raw === '' ? '' : Number(raw).toLocaleString())
+                }
+              }}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Custom Interest Rate (%) — leave blank for default
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 15"
+                  value={customRate}
+                  onChange={(e) => setCustomRate(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Custom Duration (days) — leave blank for default
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 30"
+                  value={customDuration}
+                  onChange={(e) => setCustomDuration(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
             <button
               onClick={generateApplicationLink}
               disabled={generating || !loanAmount}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50"
+              className="w-full text-white px-6 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5282)' }}
             >
               {generating ? 'Generating...' : 'Generate Link'}
             </button>
           </div>
+
           {showNewLink && newLink && (
             <div className="mt-4 p-4 bg-green-50 rounded-lg">
               <p className="text-sm font-medium text-green-700 mb-2">
@@ -190,6 +225,7 @@ export default function Applications() {
               className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+
           {loading ? (
             <div className="p-6 text-center text-gray-500 text-sm">Loading...</div>
           ) : applications.length === 0 ? (
@@ -216,6 +252,16 @@ export default function Applications() {
                           ₦{Number(app.loan_amount_requested).toLocaleString()}
                         </span>
                       </p>
+                      {app.custom_interest_rate && (
+                        <p className="text-sm text-gray-500">
+                          Custom Rate: <span className="font-medium text-orange-600">{app.custom_interest_rate}%</span>
+                        </p>
+                      )}
+                      {app.custom_duration_days && (
+                        <p className="text-sm text-gray-500">
+                          Custom Duration: <span className="font-medium text-orange-600">{app.custom_duration_days} days</span>
+                        </p>
+                      )}
                       {app.applicants?.phone !== 'Pending' && (
                         <p className="text-sm text-gray-500">Phone: {app.applicants?.phone}</p>
                       )}
@@ -255,13 +301,13 @@ export default function Applications() {
                               ? 'Copied!' : 'Copy Guarantor Link'}
                           </button>
                           
-                            <a href={getWhatsAppLink(app)}
-  target="_blank"
-  rel="noopener noreferrer"
-  className="text-xs bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition text-center"
->
-  Send via WhatsApp
-</a>
+                            < a href={getWhatsAppLink(app)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition text-center"
+                          >
+                            Send via WhatsApp
+                          </a>
                         </div>
                       )}
                       {app.status === 'pending_review' && (

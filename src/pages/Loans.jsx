@@ -124,12 +124,13 @@ export default function Loans() {
     const { data: settings } = await supabase
       .from('settings').select('*').single()
     const principal = app.loan_amount_requested
-    const rate = settings.standard_interest_rate
+const rate = app.custom_interest_rate || settings.standard_interest_rate
+const duration = app.custom_duration_days || settings.loan_duration_days
     const interest = (principal * rate) / 100
     const total = principal + interest
     const disbursedAt = new Date()
     const dueDate = new Date(disbursedAt)
-    dueDate.setDate(dueDate.getDate() + settings.loan_duration_days)
+    dueDate.setDate(dueDate.getDate() + duration)
     const { error } = await supabase.from('loans').insert({
       application_id: app.id,
       applicant_id: app.applicant_id,
