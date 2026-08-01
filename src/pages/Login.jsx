@@ -28,7 +28,7 @@ export default function Login() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
             style={{ background: 'linear-gradient(135deg, #c9a84c, #e6c97a)' }}>
-            <span className="text-2xl font-black text-white">G</span>
+            <span className="text-2xl font-black text-white">R</span>
           </div>
           <h1 className="text-3xl font-black text-white tracking-tight">Regnum</h1>
           <p className="text-blue-200 text-sm mt-1 font-medium">Ventures  Loan Management</p>

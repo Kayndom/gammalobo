@@ -43,7 +43,7 @@ export default function MainLayout({ children }) {
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-white text-lg"
               style={{ background: 'linear-gradient(135deg, #c9a84c, #e6c97a)' }}>
-              G
+              R
             </div>
             <div>
               <h1 className="text-white font-bold text-base leading-tight">Regnum</h1>

@@ -338,7 +338,7 @@ await supabase.from('loan_logs').insert([
     <body>
       <div class="receipt">
         <div class="receipt-header">
-          <div class="logo-circle">G</div>
+          <div class="logo-circle">R</div>
           <div class="receipt-title">${settings.business_name}</div>
           <div class="receipt-sub">Payment Receipt</div>
         </div>
@@ -455,7 +455,7 @@ await supabase.from('loan_logs').insert([
     <body>
       <div class="header">
         <div class="logo-block">
-          <div class="logo-circle">G</div>
+          <div class="logo-circle">R</div>
           <div>
             <div class="business-name">${settings.business_name}</div>
             <div class="business-sub">Loan Management</div>
@@ -653,7 +653,7 @@ async function printLedger(loan) {
     <body>
       <div class="header">
         <div class="logo-block">
-          <div class="logo-circle">G</div>
+          <div class="logo-circle"/div>
           <div>
             <div class="business-name">${settings.business_name}</div>
             <div style="font-size:11px;color:#64748b;">Loan Management</div>
