@@ -124,6 +124,7 @@ export default function Applications() {
       pending_review: 'bg-purple-100 text-purple-700',
       approved: 'bg-green-100 text-green-700',
       rejected: 'bg-red-100 text-red-700',
+      cancelled: 'bg-gray-100 text-gray-500',
     }
     const labels = {
       pending_loanee: 'Awaiting Loanee',
@@ -131,6 +132,7 @@ export default function Applications() {
       pending_review: 'Pending Review',
       approved: 'Approved',
       rejected: 'Rejected',
+      cancelled: 'Cancelled',
     }
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-600'}`}>
@@ -340,13 +342,33 @@ export default function Applications() {
                         </div>
                       )}
                       {app.status === 'rejected' && (
-                        <button
-                          onClick={() => updateStatus(app.id, 'pending_review')}
-                          className="text-xs bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition"
-                        >
-                          Reconsider
-                        </button>
-                      )}
+  <button
+    onClick={() => updateStatus(app.id, 'pending_review')}
+    className="text-xs bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition"
+  >
+    Reconsider
+  </button>
+)}
+{['pending_loanee', 'pending_guarantor', 'pending_review'].includes(app.status) && (
+  <button
+    onClick={() => {
+      if (window.confirm('Cancel this application? This cannot be undone.')) {
+        updateStatus(app.id, 'cancelled')
+      }
+    }}
+    className="text-xs bg-red-100 text-red-600 px-3 py-1 rounded-lg hover:bg-red-200 transition"
+  >
+    Cancel
+  </button>
+)}
+{app.status === 'cancelled' && (
+  <button
+    onClick={() => updateStatus(app.id, 'pending_review')}
+    className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-lg hover:bg-gray-200 transition"
+  >
+    Restore
+  </button>
+)}
                     </div>
                   </div>
                 </div>
