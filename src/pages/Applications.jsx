@@ -108,6 +108,10 @@ export default function Applications() {
     }
   }
 
+  async function deleteApplication(id) {
+  await supabase.from('applications').delete().eq('id', id)
+  fetchApplications()
+}
   fetchApplications()
 }
 
@@ -362,12 +366,24 @@ export default function Applications() {
   </button>
 )}
 {app.status === 'cancelled' && (
-  <button
-    onClick={() => updateStatus(app.id, 'pending_review')}
-    className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-lg hover:bg-gray-200 transition"
-  >
-    Restore
-  </button>
+  <div className="flex flex-col gap-1">
+    <button
+      onClick={() => updateStatus(app.id, 'pending_review')}
+      className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-lg hover:bg-gray-200 transition"
+    >
+      Restore
+    </button>
+    <button
+      onClick={() => {
+        if (window.confirm('Permanently delete this application? This cannot be undone.')) {
+          deleteApplication(app.id)
+        }
+      }}
+      className="text-xs bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700 transition"
+    >
+      Delete
+    </button>
+  </div>
 )}
                     </div>
                   </div>
