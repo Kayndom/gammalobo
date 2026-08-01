@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import MainLayout from '../layouts/MainLayout'
 import { supabase } from '../lib/supabase'
+import { logLoanToSheets, logPaymentToSheets, logApplicationToSheets, logLoaneeToSheets } from '../lib/sheets'
 
 export default function Settings() {
   const [settings, setSettings] = useState(null)
@@ -11,6 +12,8 @@ export default function Settings() {
 const [passwordMessage, setPasswordMessage] = useState('')
 const [changingPassword, setChangingPassword] = useState(false)
 const [importMessage, setImportMessage] = useState('')
+const [syncing, setSyncing] = useState(false)
+const [syncMessage, setSyncMessage] = useState('')
 
   useEffect(() => {
     fetchSettings()
@@ -315,6 +318,61 @@ async function exportAll() {
   a.click()
   URL.revokeObjectURL(url)
 }
+async function syncAllToSheets() {
+  setSyncing(true)
+  setSyncMessage('')
+
+  try {
+    // Sync loanees
+    const { data: loanees } = await supabase
+      .from('applicants')
+      .select('*')
+      .not('full_name', 'eq', 'Pending')
+    if (loanees) {
+      for (const loanee of loanees) {
+        await logLoaneeToSheets(loanee)
+      }
+    }
+
+    // Sync applications
+    const { data: apps } = await supabase
+      .from('applications')
+      .select('*, applicants(*), guarantors(*)')
+      .eq('status', 'approved')
+    if (apps) {
+      for (const app of apps) {
+        await logApplicationToSheets(app, app.applicants, app.guarantors)
+      }
+    }
+
+    // Sync loans
+    const { data: loans } = await supabase
+      .from('loans')
+      .select('*, applicants(*), guarantors(*)')
+    if (loans) {
+      for (const loan of loans) {
+        await logLoanToSheets(loan, loan.applicants, loan.guarantors)
+      }
+    }
+
+    // Sync payments
+    const { data: payments } = await supabase
+      .from('instalments')
+      .select('*, loans(applicants(full_name))')
+    if (payments) {
+      for (const payment of payments) {
+        await logPaymentToSheets(payment, payment.loans?.applicants?.full_name)
+      }
+    }
+
+    setSyncMessage('✓ All data synced to Google Sheets successfully')
+  } catch (err) {
+    setSyncMessage('Error syncing data: ' + err.message)
+    console.error(err)
+  }
+
+  setSyncing(false)
+}
 
   return (
     <MainLayout>
@@ -466,6 +524,7 @@ async function exportAll() {
     >
       Export Loans to CSV
     </button>
+
     <button
       onClick={exportLoanees}
       className="w-full py-2 rounded-lg text-sm font-medium text-white hover:opacity-90 transition"
@@ -494,6 +553,22 @@ async function exportAll() {
 >
   Export Everything (Full Backup)
 </button>
+<div className="border-t pt-3">
+  <p className="text-xs text-gray-500 mb-2">Sync all existing data to Google Sheets</p>
+  {syncMessage && (
+    <p className={`text-sm mb-2 ${syncMessage.includes('Error') ? 'text-red-500' : 'text-green-600'}`}>
+      {syncMessage}
+    </p>
+  )}
+  <button
+    onClick={syncAllToSheets}
+    disabled={syncing}
+    className="w-full py-2 rounded-lg text-sm font-medium text-white hover:opacity-90 transition disabled:opacity-50"
+    style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)' }}
+  >
+    {syncing ? 'Syncing...' : '📊 Sync All Data to Google Sheets'}
+  </button>
+</div>
     <div className="border-t pt-3">
       <p className="text-xs text-gray-500 mb-2">Import CSV backup to restore data</p>
       <label className="w-full py-2 rounded-lg text-sm font-medium text-center block cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-400 transition text-gray-500">
