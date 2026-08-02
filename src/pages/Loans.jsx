@@ -574,7 +574,7 @@ await supabase.from('loan_logs').insert([
     <head>
       <title>Loan Agreement - ${loan.applicants?.full_name}</title>
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
+     <style>
   * {
     margin: 0;
     padding: 0;
@@ -592,185 +592,294 @@ await supabase.from('loan_logs').insert([
     font-family: Arial, sans-serif;
     color: #111;
     background: #fff;
-    width: 100%;
-    max-width: none;
-    margin: 0;
-    padding: 8px;
-    font-size: 10.5px;
-    line-height: 1.2;
+
+    /* Responsive for mobile + A4 */
+    width: min(100%, 794px);
+    margin: 0 auto;
+    padding: 12px;
+
+    font-size: 11px;
+    line-height: 1.3;
   }
 
   .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 2px solid #1e3a5f;
-    padding-bottom: 6px;
-    margin-bottom: 8px;
+    border-bottom: 3px solid #1e3a5f;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
   }
 
   .logo-block {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
   }
 
   .logo-circle {
-    width: 30px;
-    height: 30px;
-    border-radius: 6px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
     background: #1e3a5f;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #c9a84c;
-    font-size: 15px;
+    font-size: 18px;
     font-weight: 900;
   }
 
   .business-name {
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 900;
     color: #1e3a5f;
   }
 
-  .business-sub,
-  .doc-date {
-    font-size: 8px;
+  .business-sub {
+    font-size: 10px;
+    color: #333;
   }
 
   .doc-title {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 800;
     color: #1e3a5f;
     text-transform: uppercase;
-    letter-spacing: .5px;
+    letter-spacing: 1px;
+    text-align: right;
+  }
+
+  .doc-date {
+    font-size: 10px;
+    color: #333;
+    text-align: right;
+    margin-top: 2px;
   }
 
   .loan-summary {
     background: #1e3a5f;
-    border-radius: 6px;
-    padding: 8px;
-    margin-bottom: 8px;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
     color: white;
   }
 
   .loan-summary-title {
-    font-size: 8px;
-    margin-bottom: 4px;
+    font-size: 10px;
+    color: #a8c0d6;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+    font-weight: 700;
   }
 
   .loan-amount {
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 900;
     color: #c9a84c;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
 
   .loan-grid {
     display: grid;
-    grid-template-columns: repeat(4,1fr);
-    gap: 4px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
   }
 
   .loan-item {
-    padding: 5px 6px;
-    border-radius: 4px;
+    background: rgba(255,255,255,.12);
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 5px;
+    padding: 6px;
   }
 
   .loan-item-label {
-    font-size: 7px;
+    font-size: 8px;
+    color: #a8c0d6;
+    text-transform: uppercase;
+    letter-spacing: .5px;
     margin-bottom: 2px;
   }
 
   .loan-item-value {
-    font-size: 10px;
+    font-size: 11px;
+    font-weight: 800;
+    color: #fff;
   }
 
   .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .section {
+    margin-bottom: 8px;
+  }
+
+  .section-title {
+    font-size: 10px;
+    font-weight: 800;
+    color: #1e3a5f;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+    padding-bottom: 3px;
+    border-bottom: 2px solid #1e3a5f;
+  }
+
+  .field {
+    background: #f1f5f9;
+    border-radius: 5px;
+    padding: 6px 8px;
+    margin-bottom: 5px;
+  }
+
+  .field-label {
+    font-size: 8px;
+    color: #444;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-bottom: 2px;
+    font-weight: 700;
+  }
+
+  .field-value {
+    font-size: 11px;
+    font-weight: 700;
+    color: #111;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+  }
+
+  .repay-box {
+    background: #f0fdf4;
+    border: 2px solid #16a34a;
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+
+  .repay-title {
+    font-size: 10px;
+    font-weight: 800;
+    color: #14532d;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+  }
+
+  .repay-text {
+    font-size: 11px;
+    color: #14532d;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .bottom-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
     margin-bottom: 8px;
   }
 
-  .section {
-    margin-bottom: 6px;
-  }
-
-  .section-title {
-    font-size: 9px;
-    margin-bottom: 4px;
-    padding-bottom: 2px;
-    border-bottom: 1.5px solid #1e3a5f;
-  }
-
-  .field {
-    padding: 5px 7px;
-    margin-bottom: 4px;
-    border-radius: 4px;
-  }
-
-  .field-label {
-    font-size: 7px;
-    margin-bottom: 1px;
-  }
-
-  .field-value {
-    font-size: 10px;
-  }
-
-  .grid-2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-  }
-
-  .repay-box,
-  .terms-box,
-  .consent-box {
+  .terms-box {
+    background: #fff7ed;
+    border: 2px solid #ea580c;
+    border-radius: 6px;
     padding: 8px;
-    border-radius: 5px;
   }
 
-  .repay-title,
-  .terms-title,
+  .terms-title {
+    font-size: 10px;
+    font-weight: 800;
+    color: #9a3412;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+  }
+
+  .terms-text {
+    font-size: 10px;
+    color: #7c2d12;
+    line-height: 1.4;
+    font-weight: 600;
+  }
+
+  .consent-box {
+    background: #eff6ff;
+    border: 2px solid #1e3a5f;
+    border-radius: 6px;
+    padding: 8px;
+  }
+
   .consent-title {
-    font-size: 8px;
-    margin-bottom: 4px;
+    font-size: 10px;
+    font-weight: 800;
+    color: #1e3a5f;
+    margin-bottom: 5px;
+    text-transform: uppercase;
   }
 
-  .repay-text,
-  .terms-text,
   .consent-text {
-    font-size: 9px;
-    line-height: 1.3;
-  }
-
-  .bottom-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    margin-bottom: 6px;
+    font-size: 10px;
+    color: #1e3a5f;
+    line-height: 1.4;
+    font-weight: 500;
   }
 
   .consent-stamp {
+    background: #1e3a5f;
+    color: #c9a84c;
+    border-radius: 5px;
+    padding: 6px 8px;
+    font-size: 9px;
+    font-weight: 800;
     margin-top: 6px;
-    padding: 5px 8px;
-    font-size: 8px;
+    text-align: center;
   }
 
   .footer {
-    margin-top: 6px;
-    padding-top: 5px;
-    border-top: 1px solid #ddd;
-    font-size: 8px;
-    line-height: 1.3;
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 2px solid #e2e8f0;
+    text-align: center;
+    font-size: 9px;
+    color: #333;
+    line-height: 1.4;
+    font-weight: 500;
+  }
+
+  @media (max-width: 600px) {
+    .loan-grid,
+    .two-col,
+    .bottom-row,
+    .grid-2 {
+      grid-template-columns: 1fr;
+    }
+
+    .doc-title,
+    .doc-date {
+      text-align: left;
+      margin-top: 6px;
+    }
+
+    .header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
   }
 
   @media print {
     body {
-      padding: 4px;
+      width: 100%;
+      max-width: none;
+      padding: 4mm;
     }
 
     * {
