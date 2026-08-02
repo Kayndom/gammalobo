@@ -439,6 +439,7 @@ await supabase.from('loan_logs').insert([
       <title>Loan Agreement - ${loan.applicants?.full_name}</title>
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
           font-family: Arial, sans-serif;
@@ -633,10 +634,11 @@ await supabase.from('loan_logs').insert([
           font-weight: 500;
         }
 
-        @media print {
-          body { padding: 12px; }
-          @page { margin: 8mm; size: A4 portrait; }
-        }
+       @media print {
+  body { padding: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @page { margin: 8mm; size: A4 portrait; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+}
       </style>
     </head>
     <body>
