@@ -594,11 +594,11 @@ await supabase.from('loan_logs').insert([
     background: #fff;
 
     /* Responsive for mobile + A4 */
-    width: min(100%, 794px);
+    width: min(100%, 694px);
     margin: 0 auto;
     padding: 12px;
 
-    font-size: 11px;
+    font-size: 15px;
     line-height: 1.3;
   }
 
@@ -631,18 +631,18 @@ await supabase.from('loan_logs').insert([
   }
 
   .business-name {
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 900;
     color: #1e3a5f;
   }
 
   .business-sub {
-    font-size: 10px;
+    font-size: 12px;
     color: #333;
   }
 
   .doc-title {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 800;
     color: #1e3a5f;
     text-transform: uppercase;
@@ -651,7 +651,7 @@ await supabase.from('loan_logs').insert([
   }
 
   .doc-date {
-    font-size: 10px;
+    font-size: 12px;
     color: #333;
     text-align: right;
     margin-top: 2px;
@@ -666,7 +666,7 @@ await supabase.from('loan_logs').insert([
   }
 
   .loan-summary-title {
-    font-size: 10px;
+    font-size: 12px;
     color: #a8c0d6;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -675,7 +675,7 @@ await supabase.from('loan_logs').insert([
   }
 
   .loan-amount {
-    font-size: 24px;
+    font-size: 26px;
     font-weight: 900;
     color: #c9a84c;
     margin-bottom: 8px;
@@ -695,7 +695,7 @@ await supabase.from('loan_logs').insert([
   }
 
   .loan-item-label {
-    font-size: 8px;
+    font-size: 10px;
     color: #a8c0d6;
     text-transform: uppercase;
     letter-spacing: .5px;
@@ -703,7 +703,7 @@ await supabase.from('loan_logs').insert([
   }
 
   .loan-item-value {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 800;
     color: #fff;
   }
@@ -720,7 +720,7 @@ await supabase.from('loan_logs').insert([
   }
 
   .section-title {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 800;
     color: #1e3a5f;
     text-transform: uppercase;
@@ -738,7 +738,7 @@ await supabase.from('loan_logs').insert([
   }
 
   .field-label {
-    font-size: 8px;
+    font-size: 10px;
     color: #444;
     text-transform: uppercase;
     letter-spacing: .5px;
@@ -747,7 +747,7 @@ await supabase.from('loan_logs').insert([
   }
 
   .field-value {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 700;
     color: #111;
   }
@@ -767,7 +767,7 @@ await supabase.from('loan_logs').insert([
   }
 
   .repay-title {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 800;
     color: #14532d;
     margin-bottom: 5px;
@@ -775,7 +775,7 @@ await supabase.from('loan_logs').insert([
   }
 
   .repay-text {
-    font-size: 11px;
+    font-size: 13px;
     color: #14532d;
     font-weight: 600;
     line-height: 1.4;
@@ -796,7 +796,7 @@ await supabase.from('loan_logs').insert([
   }
 
   .terms-title {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 800;
     color: #9a3412;
     margin-bottom: 5px;
@@ -804,7 +804,7 @@ await supabase.from('loan_logs').insert([
   }
 
   .terms-text {
-    font-size: 10px;
+    font-size: 12px;
     color: #7c2d12;
     line-height: 1.4;
     font-weight: 600;
@@ -818,7 +818,7 @@ await supabase.from('loan_logs').insert([
   }
 
   .consent-title {
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 800;
     color: #1e3a5f;
     margin-bottom: 5px;
@@ -826,7 +826,7 @@ await supabase.from('loan_logs').insert([
   }
 
   .consent-text {
-    font-size: 10px;
+    font-size: 12px;
     color: #1e3a5f;
     line-height: 1.4;
     font-weight: 500;
@@ -837,7 +837,7 @@ await supabase.from('loan_logs').insert([
     color: #c9a84c;
     border-radius: 5px;
     padding: 6px 8px;
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 800;
     margin-top: 6px;
     text-align: center;
@@ -848,7 +848,7 @@ await supabase.from('loan_logs').insert([
     padding-top: 6px;
     border-top: 2px solid #e2e8f0;
     text-align: center;
-    font-size: 9px;
+    font-size: 11px;
     color: #333;
     line-height: 1.4;
     font-weight: 500;
