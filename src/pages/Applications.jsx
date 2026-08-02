@@ -108,8 +108,14 @@ export default function Applications() {
     }
   }
 
-  async function deleteApplication(id) {
-  await supabase.from('applications').delete().eq('id', id)
+ async function deleteApplication(app) {
+  await supabase.from('applications').delete().eq('id', app.id)
+  if (app.guarantor_id) {
+    await supabase.from('guarantors').delete().eq('id', app.guarantor_id)
+  }
+  if (app.applicant_id) {
+    await supabase.from('applicants').delete().eq('id', app.applicant_id)
+  }
   fetchApplications()
 }
   fetchApplications()
@@ -375,10 +381,10 @@ export default function Applications() {
     </button>
     <button
       onClick={() => {
-        if (window.confirm('Permanently delete this application? This cannot be undone.')) {
-          deleteApplication(app.id)
-        }
-      }}
+  if (window.confirm('Permanently delete this application? This cannot be undone.')) {
+    deleteApplication(app)
+  }
+}}
       className="text-xs bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700 transition"
     >
       Delete
