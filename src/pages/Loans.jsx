@@ -422,6 +422,15 @@ await supabase.from('loan_logs').insert([
   const { data: settings } = await supabase
     .from('settings').select('*').single()
 
+  const { data: appData } = await supabase
+    .from('applications')
+    .select('custom_interest_rate, custom_duration_days')
+    .eq('id', loan.application_id)
+    .single()
+
+  const displayRate = loan.interest_rate
+  const displayDuration = appData?.custom_duration_days || settings.loan_duration_days
+
   const win = window.open('', '_blank')
   win.document.write(`
     <!DOCTYPE html>
@@ -433,94 +442,199 @@ await supabase.from('loan_logs').insert([
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
           font-family: Arial, sans-serif;
-          color: #111;
+          color: #111111;
           background: white;
-          padding: 16px;
-          max-width: 480px;
+          padding: 30px;
+          max-width: 520px;
           margin: 0 auto;
           font-size: 14px;
+          line-height: 1.5;
         }
         .header {
           display: flex;
           justify-content: space-between;
           align-items: center;
           border-bottom: 3px solid #1e3a5f;
-          padding-bottom: 14px;
-          margin-bottom: 16px;
+          padding-bottom: 16px;
+          margin-bottom: 20px;
         }
         .logo-block { display: flex; align-items: center; gap: 10px; }
         .logo-circle {
           width: 44px; height: 44px; border-radius: 10px;
-          background: linear-gradient(135deg, #1e3a5f, #2d5282);
+          background: #1e3a5f;
           display: flex; align-items: center; justify-content: center;
           color: #c9a84c; font-size: 22px; font-weight: 900;
         }
-        .business-name { font-size: 16px; font-weight: 900; color: #1e3a5f; }
-        .business-sub { font-size: 11px; color: #555; margin-top: 2px; }
+        .business-name { font-size: 17px; font-weight: 900; color: #1e3a5f; }
+        .business-sub { font-size: 11px; color: #333; margin-top: 2px; }
         .doc-info { text-align: right; }
-        .doc-title { font-size: 12px; font-weight: 800; color: #1e3a5f; text-transform: uppercase; letter-spacing: 1px; }
-        .doc-date { font-size: 11px; color: #444; margin-top: 3px; }
+        .doc-title { font-size: 13px; font-weight: 800; color: #1e3a5f; text-transform: uppercase; letter-spacing: 1px; }
+        .doc-date { font-size: 12px; color: #333; margin-top: 3px; }
 
-        .highlight-box {
+        .loan-summary {
           background: #1e3a5f;
-          border-radius: 10px; padding: 16px; color: white; margin-bottom: 16px;
+          border-radius: 10px;
+          padding: 18px;
+          margin-bottom: 20px;
+          color: white;
         }
-        .highlight-label { font-size: 11px; color: #a8c0d6; text-transform: uppercase; letter-spacing: 0.5px; }
-        .highlight-value { font-size: 28px; font-weight: 900; margin-top: 4px; color: #c9a84c; }
-        .highlight-sub { font-size: 12px; color: #cde; margin-top: 6px; line-height: 1.5; }
+        .loan-summary-title {
+          font-size: 11px;
+          color: #a8c0d6;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin-bottom: 10px;
+          font-weight: 700;
+        }
+        .loan-amount {
+          font-size: 30px;
+          font-weight: 900;
+          color: #c9a84c;
+          margin-bottom: 12px;
+        }
+        .loan-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+        }
+        .loan-item {
+          background: rgba(255,255,255,0.1);
+          border: 1px solid rgba(255,255,255,0.2);
+          border-radius: 6px;
+          padding: 8px 10px;
+        }
+        .loan-item-label {
+          font-size: 10px;
+          color: #a8c0d6;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 3px;
+        }
+        .loan-item-value {
+          font-size: 14px;
+          font-weight: 800;
+          color: #ffffff;
+        }
 
-        .section { margin-bottom: 16px; }
+        .section { margin-bottom: 18px; }
         .section-title {
-          font-size: 11px; font-weight: 800; color: #1e3a5f;
-          text-transform: uppercase; letter-spacing: 1px;
-          margin-bottom: 8px; padding-bottom: 4px;
+          font-size: 12px;
+          font-weight: 800;
+          color: #1e3a5f;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin-bottom: 10px;
+          padding-bottom: 5px;
           border-bottom: 2px solid #1e3a5f;
         }
         .field {
           background: #f1f5f9;
-          border-radius: 6px; padding: 10px 12px; margin-bottom: 8px;
+          border-radius: 6px;
+          padding: 10px 12px;
+          margin-bottom: 8px;
         }
-        .field-label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; font-weight: 700; }
-        .field-value { font-size: 14px; font-weight: 700; color: #111; }
+        .field-label {
+          font-size: 10px;
+          color: #444;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 3px;
+          font-weight: 700;
+        }
+        .field-value {
+          font-size: 14px;
+          font-weight: 700;
+          color: #111;
+        }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
         .repay-box {
-          background: #f0fdf4; border: 2px solid #16a34a;
-          border-radius: 8px; padding: 14px; margin-bottom: 14px;
+          background: #f0fdf4;
+          border: 2px solid #16a34a;
+          border-radius: 8px;
+          padding: 14px;
+          margin-bottom: 14px;
         }
-        .repay-title { font-size: 12px; font-weight: 800; color: #15803d; margin-bottom: 8px; text-transform: uppercase; }
-        .repay-text { font-size: 13px; color: #166534; font-weight: 600; line-height: 2; }
+        .repay-title {
+          font-size: 12px;
+          font-weight: 800;
+          color: #14532d;
+          margin-bottom: 8px;
+          text-transform: uppercase;
+        }
+        .repay-text {
+          font-size: 13px;
+          color: #14532d;
+          font-weight: 600;
+          line-height: 1.8;
+        }
 
         .terms-box {
-          background: #fff7ed; border: 2px solid #ea580c;
-          border-radius: 8px; padding: 14px; margin-bottom: 14px;
+          background: #fff7ed;
+          border: 2px solid #ea580c;
+          border-radius: 8px;
+          padding: 14px;
+          margin-bottom: 14px;
         }
-        .terms-title { font-size: 12px; font-weight: 800; color: #c2410c; margin-bottom: 8px; text-transform: uppercase; }
-        .terms-text { font-size: 12px; color: #7c2d12; line-height: 1.7; }
+        .terms-title {
+          font-size: 12px;
+          font-weight: 800;
+          color: #9a3412;
+          margin-bottom: 8px;
+          text-transform: uppercase;
+        }
+        .terms-text {
+          font-size: 12px;
+          color: #7c2d12;
+          line-height: 1.7;
+          font-weight: 600;
+        }
 
         .consent-box {
-          background: #eff6ff; border: 2px solid #1e3a5f;
-          border-radius: 8px; padding: 14px; margin-bottom: 14px;
+          background: #eff6ff;
+          border: 2px solid #1e3a5f;
+          border-radius: 8px;
+          padding: 14px;
+          margin-bottom: 14px;
         }
-        .consent-title { font-size: 12px; font-weight: 800; color: #1e3a5f; margin-bottom: 8px; text-transform: uppercase; }
-        .consent-text { font-size: 12px; color: #1e3a5f; line-height: 1.8; }
+        .consent-title {
+          font-size: 12px;
+          font-weight: 800;
+          color: #1e3a5f;
+          margin-bottom: 8px;
+          text-transform: uppercase;
+        }
+        .consent-text {
+          font-size: 12px;
+          color: #1e3a5f;
+          line-height: 1.8;
+          font-weight: 500;
+        }
         .consent-stamp {
-          background: #1e3a5f; color: #c9a84c;
-          border-radius: 6px; padding: 10px 12px;
-          font-size: 11px; font-weight: 800;
-          margin-top: 12px; text-align: center;
+          background: #1e3a5f;
+          color: #c9a84c;
+          border-radius: 6px;
+          padding: 10px 12px;
+          font-size: 12px;
+          font-weight: 800;
+          margin-top: 12px;
+          text-align: center;
           letter-spacing: 0.5px;
         }
 
         .footer {
-          margin-top: 16px; padding-top: 12px;
+          margin-top: 20px;
+          padding-top: 14px;
           border-top: 2px solid #e2e8f0;
-          text-align: center; font-size: 11px; color: #555;
-          line-height: 1.6;
+          text-align: center;
+          font-size: 12px;
+          color: #333;
+          line-height: 1.7;
+          font-weight: 500;
         }
 
         @media print {
-          body { padding: 8px; }
+          body { padding: 12px; }
           @page { margin: 8mm; size: A4 portrait; }
         }
       </style>
@@ -542,12 +656,26 @@ await supabase.from('loan_logs').insert([
         </div>
       </div>
 
-      <div class="highlight-box">
-        <div class="highlight-label">Loan Amount</div>
-        <div class="highlight-value">₦${Number(loan.principal).toLocaleString()}</div>
-        <div class="highlight-sub">
-          Total Repayment: ₦${Number(loan.total_owed).toLocaleString()}<br>
-          Interest Rate: ${loan.interest_rate}% &nbsp;|&nbsp; Duration: 30 days
+      <div class="loan-summary">
+        <div class="loan-summary-title">Loan Summary</div>
+        <div class="loan-amount">₦${Number(loan.principal).toLocaleString()}</div>
+        <div class="loan-grid">
+          <div class="loan-item">
+            <div class="loan-item-label">Total Repayment</div>
+            <div class="loan-item-value">₦${Number(loan.total_owed).toLocaleString()}</div>
+          </div>
+          <div class="loan-item">
+            <div class="loan-item-label">Interest Rate</div>
+            <div class="loan-item-value">${displayRate}%</div>
+          </div>
+          <div class="loan-item">
+            <div class="loan-item-label">Duration</div>
+            <div class="loan-item-value">${displayDuration} days</div>
+          </div>
+          <div class="loan-item">
+            <div class="loan-item-label">Interest Amount</div>
+            <div class="loan-item-value">₦${Number(loan.interest_amount).toLocaleString()}</div>
+          </div>
         </div>
       </div>
 
@@ -571,10 +699,10 @@ await supabase.from('loan_logs').insert([
             <div class="field-value">${loan.applicants?.nin || 'N/A'}</div>
           </div>
         </div>
-        <div class="field" style="margin-top:0">
+        <div class="field">
           <div class="field-label">Disbursement Account</div>
           <div class="field-value">${loan.applicants?.account_name}</div>
-          <div class="field-value">${loan.applicants?.account_number} &nbsp;·&nbsp; ${loan.applicants?.bank_name}</div>
+          <div class="field-value" style="color:#444; font-size:13px;">${loan.applicants?.account_number} · ${loan.applicants?.bank_name}</div>
         </div>
       </div>
 
@@ -596,8 +724,8 @@ await supabase.from('loan_logs').insert([
         <div class="repay-title">Repay To</div>
         <div class="repay-text">
           ${settings.repayment_account_name}<br>
-          ${settings.repayment_bank}<br>
-          Account No: ${settings.repayment_account_no}
+          Bank: ${settings.repayment_bank}<br>
+          Account No: <strong>${settings.repayment_account_no}</strong>
         </div>
       </div>
 
@@ -606,7 +734,7 @@ await supabase.from('loan_logs').insert([
         <div class="terms-text">
           If repayment is not made by the due date, an automatic new loan term is created
           at <strong>20% interest</strong> for <strong>30 days</strong>, while awaiting legal action.
-          Collateral equivalent to the outstanding amount may be claimed.
+          Collateral equivalent to the outstanding amount may be claimed at the time of legal action.
         </div>
       </div>
 
@@ -621,7 +749,7 @@ await supabase.from('loan_logs').insert([
           the borrower confirmed they have read, understood, and agreed to all terms in this agreement,
           including the repayment schedule and penalty clauses.
           <br><br>
-          The guarantor also confirmed their role by completing the digital guarantor form sent to them.
+          The guarantor also confirmed their role by completing the digital guarantor form sent via the platform.
         </div>
         <div class="consent-stamp">
           ✓ DIGITALLY ACCEPTED &nbsp;·&nbsp; ${settings.business_name} &nbsp;·&nbsp;

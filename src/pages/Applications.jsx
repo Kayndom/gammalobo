@@ -109,14 +109,24 @@ export default function Applications() {
   }
 
  async function deleteApplication(app) {
-  await supabase.from('applications').delete().eq('id', app.id)
-  if (app.guarantor_id) {
-    await supabase.from('guarantors').delete().eq('id', app.guarantor_id)
+  try {
+    const { error: appError } = await supabase
+      .from('applications')
+      .delete()
+      .eq('id', app.id)
+    if (appError) throw appError
+
+    if (app.guarantor_id) {
+      await supabase.from('guarantors').delete().eq('id', app.guarantor_id)
+    }
+    if (app.applicant_id) {
+      await supabase.from('applicants').delete().eq('id', app.applicant_id)
+    }
+    fetchApplications()
+  } catch (err) {
+    console.error('Delete error:', err)
+    alert('Error deleting: ' + err.message)
   }
-  if (app.applicant_id) {
-    await supabase.from('applicants').delete().eq('id', app.applicant_id)
-  }
-  fetchApplications()
 }
   fetchApplications()
 }
