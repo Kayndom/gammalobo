@@ -446,7 +446,7 @@ await supabase.from('loan_logs').insert([
           color: #111111;
           background: white;
           padding: 30px;
-          max-width: 520px;
+          max-width: 680px;
           margin: 0 auto;
           font-size: 14px;
           line-height: 1.5;
