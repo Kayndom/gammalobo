@@ -575,207 +575,210 @@ await supabase.from('loan_logs').insert([
       <title>Loan Agreement - ${loan.applicants?.full_name}</title>
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
-      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-          font-family: Arial, sans-serif;
-          color: #111111;
-          background: white;
-          padding: 30px;
-          max-width: 680px;
-          margin: 0 auto;
-          font-size: 14px;
-          line-height: 1.5;
-        }
-        .header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-bottom: 3px solid #1e3a5f;
-          padding-bottom: 16px;
-          margin-bottom: 20px;
-        }
-        .logo-block { display: flex; align-items: center; gap: 10px; }
-        .logo-circle {
-          width: 44px; height: 44px; border-radius: 10px;
-          background: #1e3a5f;
-          display: flex; align-items: center; justify-content: center;
-          color: #c9a84c; font-size: 22px; font-weight: 900;
-        }
-        .business-name { font-size: 17px; font-weight: 900; color: #1e3a5f; }
-        .business-sub { font-size: 11px; color: #333; margin-top: 2px; }
-        .doc-info { text-align: right; }
-        .doc-title { font-size: 13px; font-weight: 800; color: #1e3a5f; text-transform: uppercase; letter-spacing: 1px; }
-        .doc-date { font-size: 12px; color: #333; margin-top: 3px; }
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 
-        .loan-summary {
-          background: #1e3a5f;
-          border-radius: 10px;
-          padding: 18px;
-          margin-bottom: 20px;
-          color: white;
-        }
-        .loan-summary-title {
-          font-size: 11px;
-          color: #a8c0d6;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          margin-bottom: 10px;
-          font-weight: 700;
-        }
-        .loan-amount {
-          font-size: 30px;
-          font-weight: 900;
-          color: #c9a84c;
-          margin-bottom: 12px;
-        }
-        .loan-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 8px;
-        }
-        .loan-item {
-          background: rgba(255,255,255,0.1);
-          border: 1px solid rgba(255,255,255,0.2);
-          border-radius: 6px;
-          padding: 8px 10px;
-        }
-        .loan-item-label {
-          font-size: 10px;
-          color: #a8c0d6;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          margin-bottom: 3px;
-        }
-        .loan-item-value {
-          font-size: 14px;
-          font-weight: 800;
-          color: #ffffff;
-        }
+  @page {
+    size: A4 portrait;
+    margin: 5mm;
+  }
 
-        .section { margin-bottom: 18px; }
-        .section-title {
-          font-size: 12px;
-          font-weight: 800;
-          color: #1e3a5f;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          margin-bottom: 10px;
-          padding-bottom: 5px;
-          border-bottom: 2px solid #1e3a5f;
-        }
-        .field {
-          background: #f1f5f9;
-          border-radius: 6px;
-          padding: 10px 12px;
-          margin-bottom: 8px;
-        }
-        .field-label {
-          font-size: 10px;
-          color: #444;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          margin-bottom: 3px;
-          font-weight: 700;
-        }
-        .field-value {
-          font-size: 14px;
-          font-weight: 700;
-          color: #111;
-        }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  body {
+    font-family: Arial, sans-serif;
+    color: #111;
+    background: #fff;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 8px;
+    font-size: 10.5px;
+    line-height: 1.2;
+  }
 
-        .repay-box {
-          background: #f0fdf4;
-          border: 2px solid #16a34a;
-          border-radius: 8px;
-          padding: 14px;
-          margin-bottom: 14px;
-        }
-        .repay-title {
-          font-size: 12px;
-          font-weight: 800;
-          color: #14532d;
-          margin-bottom: 8px;
-          text-transform: uppercase;
-        }
-        .repay-text {
-          font-size: 13px;
-          color: #14532d;
-          font-weight: 600;
-          line-height: 1.8;
-        }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #1e3a5f;
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+  }
 
-        .terms-box {
-          background: #fff7ed;
-          border: 2px solid #ea580c;
-          border-radius: 8px;
-          padding: 14px;
-          margin-bottom: 14px;
-        }
-        .terms-title {
-          font-size: 12px;
-          font-weight: 800;
-          color: #9a3412;
-          margin-bottom: 8px;
-          text-transform: uppercase;
-        }
-        .terms-text {
-          font-size: 12px;
-          color: #7c2d12;
-          line-height: 1.7;
-          font-weight: 600;
-        }
+  .logo-block {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
 
-        .consent-box {
-          background: #eff6ff;
-          border: 2px solid #1e3a5f;
-          border-radius: 8px;
-          padding: 14px;
-          margin-bottom: 14px;
-        }
-        .consent-title {
-          font-size: 12px;
-          font-weight: 800;
-          color: #1e3a5f;
-          margin-bottom: 8px;
-          text-transform: uppercase;
-        }
-        .consent-text {
-          font-size: 12px;
-          color: #1e3a5f;
-          line-height: 1.8;
-          font-weight: 500;
-        }
-        .consent-stamp {
-          background: #1e3a5f;
-          color: #c9a84c;
-          border-radius: 6px;
-          padding: 10px 12px;
-          font-size: 12px;
-          font-weight: 800;
-          margin-top: 12px;
-          text-align: center;
-          letter-spacing: 0.5px;
-        }
+  .logo-circle {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    background: #1e3a5f;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #c9a84c;
+    font-size: 15px;
+    font-weight: 900;
+  }
 
-        .footer {
-          margin-top: 20px;
-          padding-top: 14px;
-          border-top: 2px solid #e2e8f0;
-          text-align: center;
-          font-size: 12px;
-          color: #333;
-          line-height: 1.7;
-          font-weight: 500;
-        }
+  .business-name {
+    font-size: 13px;
+    font-weight: 900;
+    color: #1e3a5f;
+  }
 
-       @media print {
-  body { padding: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  @page { margin: 8mm; size: A4 portrait; }
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
-}
-      </style>
+  .business-sub,
+  .doc-date {
+    font-size: 8px;
+  }
+
+  .doc-title {
+    font-size: 10px;
+    font-weight: 800;
+    color: #1e3a5f;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+
+  .loan-summary {
+    background: #1e3a5f;
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 8px;
+    color: white;
+  }
+
+  .loan-summary-title {
+    font-size: 8px;
+    margin-bottom: 4px;
+  }
+
+  .loan-amount {
+    font-size: 22px;
+    font-weight: 900;
+    color: #c9a84c;
+    margin-bottom: 6px;
+  }
+
+  .loan-grid {
+    display: grid;
+    grid-template-columns: repeat(4,1fr);
+    gap: 4px;
+  }
+
+  .loan-item {
+    padding: 5px 6px;
+    border-radius: 4px;
+  }
+
+  .loan-item-label {
+    font-size: 7px;
+    margin-bottom: 2px;
+  }
+
+  .loan-item-value {
+    font-size: 10px;
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .section {
+    margin-bottom: 6px;
+  }
+
+  .section-title {
+    font-size: 9px;
+    margin-bottom: 4px;
+    padding-bottom: 2px;
+    border-bottom: 1.5px solid #1e3a5f;
+  }
+
+  .field {
+    padding: 5px 7px;
+    margin-bottom: 4px;
+    border-radius: 4px;
+  }
+
+  .field-label {
+    font-size: 7px;
+    margin-bottom: 1px;
+  }
+
+  .field-value {
+    font-size: 10px;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+
+  .repay-box,
+  .terms-box,
+  .consent-box {
+    padding: 8px;
+    border-radius: 5px;
+  }
+
+  .repay-title,
+  .terms-title,
+  .consent-title {
+    font-size: 8px;
+    margin-bottom: 4px;
+  }
+
+  .repay-text,
+  .terms-text,
+  .consent-text {
+    font-size: 9px;
+    line-height: 1.3;
+  }
+
+  .bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .consent-stamp {
+    margin-top: 6px;
+    padding: 5px 8px;
+    font-size: 8px;
+  }
+
+  .footer {
+    margin-top: 6px;
+    padding-top: 5px;
+    border-top: 1px solid #ddd;
+    font-size: 8px;
+    line-height: 1.3;
+  }
+
+  @media print {
+    body {
+      padding: 4px;
+    }
+
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+  }
+</style>
     </head>
     <body>
 
