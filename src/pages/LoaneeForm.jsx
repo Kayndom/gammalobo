@@ -390,12 +390,12 @@ useEffect(() => {
 
           <div className="border-t pt-6">
             <div className="bg-gray-50 rounded-lg p-4 text-xs text-gray-600 space-y-2">
-              <p className="font-semibold text-gray-700">Terms and Conditions</p>
-              <p>Interest rate: {applicationData?.custom_interest_rate ?? settings?.standard_interest_rate ?? 18}% per month</p>
-<p>Duration: {applicationData?.custom_duration_days ?? settings?.loan_duration_days ?? 30} days</p>
-<p>Penalty for missed payment: {settings?.penalty_interest_rate ?? 20}% interest on outstanding balance, new {settings?.loan_duration_days ?? 30}-day term applies automatically.</p>
-<p>By submitting this form you agree to these terms.</p>
-            </div>
+  <p className="font-semibold text-gray-700">Terms and Conditions</p>
+  <p>Loan Interest rate: <strong>{applicationData?.custom_interest_rate ?? settings?.standard_interest_rate ?? 18}%</strong> per month</p>
+  <p>Duration: <strong>{applicationData?.custom_duration_days ?? settings?.loan_duration_days ?? 30} days</strong></p>
+  <p>Penalty for missed payment: <strong>{settings?.penalty_interest_rate ?? 20}%</strong> interest on outstanding balance. A new <strong>{settings?.loan_duration_days ?? 30}-day</strong> loan term applies automatically at the penalty rate.</p>
+  <p>By submitting this form you agree to these terms.</p>
+</div>
           </div>
 
           <button

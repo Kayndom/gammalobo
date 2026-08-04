@@ -301,7 +301,7 @@ await supabase.from('loan_logs').insert([
   function getWhatsAppRolloverLink(loan) {
   const rawPhone = loan.guarantors?.phone || ''
   const phone = rawPhone.startsWith('0') ? '234' + rawPhone.slice(1) : rawPhone
-  const message = `Hello ${loan.guarantors?.full_name}, this is to notify you that the loan for ${loan.applicants?.full_name} on Regnum Ventures  has been rolled over due to non-payment. A new loan term of 30 days has started at 20% interest. Outstanding amount: ₦${Number(loan.outstanding_balance).toLocaleString()}. You remain the guarantor for this loan.`
+  const message = `Hello ${loan.guarantors?.full_name}, this is to notify you that the loan for ${loan.applicants?.full_name} on Regnum Ventures  has been rolled over due to non-payment. A new loan term of 30 days has started at ${settings.penalty_interest_rate}% interest. Outstanding amount: ₦${Number(loan.outstanding_balance).toLocaleString()}. You remain the guarantor for this loan.`
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
 }
 
@@ -523,7 +523,7 @@ await supabase.from('loan_logs').insert([
       <div class="terms-title">⚠️ Penalty for Missed Payments</div>
       <div class="terms-text">
         If repayment is not made by due date, a new loan term is created at
-        <strong>20% interest</strong> for <strong>30 days</strong> while awaiting legal action.
+        <strong>${settings.penalty_interest_rate}% interest</strong> for <strong>30 days</strong> while awaiting legal action.
         Collateral may be claimed.
       </div>
     </div>
@@ -983,7 +983,7 @@ await supabase.from('loan_logs').insert([
         <div class="terms-title">⚠️ Penalty for Missed Payments</div>
         <div class="terms-text">
           If repayment is not made by the due date, an automatic new loan term is created
-          at <strong>20% interest</strong> for <strong>30 days</strong>, while awaiting legal action.
+          at <strong>${settings.penalty_interest_rate}% interest</strong> for <strong>${settings.loan_duration_days} days</strong> while awaiting legal action.
           Collateral equivalent to the outstanding amount may be claimed at the time of legal action.
         </div>
       </div>
@@ -1472,7 +1472,7 @@ async function printLedger(loan) {
                 <div className="border-t pt-4 space-y-2">
                   <button
                     onClick={() => {
-                      if (window.confirm(`Roll over this loan?\n\nOutstanding: ₦${Number(selectedLoan.outstanding_balance).toLocaleString()}\nNew interest: 20%\nNew due date: 30 days from today\n\nThis will update the existing loan record.`)) {
+                      if (window.confirm(`Roll over this loan?\n\nOutstanding: ₦${Number(selectedLoan.outstanding_balance).toLocaleString()}\nNew interest: ${settings.penalty_interest_rate}%\nNew due date: 30 days from today\n\nThis will update the existing loan record.`)) {
                         handleRollover(selectedLoan)
                       }
                     }}
