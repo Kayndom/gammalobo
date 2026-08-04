@@ -5,26 +5,110 @@ import { logApplicationToSheets, logLoaneeToSheets } from '../lib/sheets'
 
 function ActiveLoanWarning({ applicantId }) {
   const [hasActive, setHasActive] = useState(false)
-
   useEffect(() => {
     async function check() {
       const { data } = await supabase
-        .from('loans')
-        .select('id')
-        .eq('applicant_id', applicantId)
-        .eq('status', 'active')
-        .maybeSingle()
+        .from('loans').select('id')
+        .eq('applicant_id', applicantId).eq('status', 'active').maybeSingle()
       if (data) setHasActive(true)
     }
     check()
   }, [applicantId])
-
   if (!hasActive) return null
+  return <p className="text-xs text-orange-500 font-medium mt-1">⚠️ This loanee has an active loan</p>
+}
 
+function ApplicationDetail({ app, onClose }) {
+  if (!app) return null
   return (
-    <p className="text-xs text-orange-500 font-medium mt-1">
-      ⚠️ This loanee has an active loan
-    </p>
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-y-auto" style={{ maxHeight: '90vh' }}>
+        <div className="p-5 border-b flex justify-between items-center sticky top-0 bg-white rounded-t-2xl">
+          <h2 className="font-bold text-gray-800">Application Details</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
+        </div>
+        <div className="p-5 space-y-5">
+          <div>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Loan Info</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-400">Amount Requested</p>
+                <p className="font-bold text-gray-800">₦{Number(app.loan_amount_requested).toLocaleString()}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-400">Status</p>
+                <p className="font-bold text-gray-800">{app.status?.replace(/_/g, ' ').toUpperCase()}</p>
+              </div>
+              {app.custom_interest_rate && (
+                <div className="bg-orange-50 rounded-lg p-3">
+                  <p className="text-xs text-gray-400">Custom Rate</p>
+                  <p className="font-bold text-orange-600">{app.custom_interest_rate}%</p>
+                </div>
+              )}
+              {app.custom_duration_days && (
+                <div className="bg-orange-50 rounded-lg p-3">
+                  <p className="text-xs text-gray-400">Custom Duration</p>
+                  <p className="font-bold text-orange-600">{app.custom_duration_days} days</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Loanee Information</p>
+            <div className="space-y-2">
+              {[
+                { label: 'Full Name', value: app.applicants?.full_name },
+                { label: 'Phone', value: app.applicants?.phone },
+                { label: 'Email', value: app.applicants?.email },
+                { label: 'Address', value: app.applicants?.address },
+                { label: 'Occupation', value: app.applicants?.occupation },
+                { label: 'BVN', value: app.applicants?.bvn },
+                { label: 'NIN', value: app.applicants?.nin },
+                { label: 'Bank', value: app.applicants?.bank_name },
+                { label: 'Account Number', value: app.applicants?.account_number },
+                { label: 'Account Name', value: app.applicants?.account_name },
+              ].map((item, i) => item.value && item.value !== 'Pending' && (
+                <div key={i} className="flex justify-between items-start bg-gray-50 rounded-lg px-3 py-2">
+                  <p className="text-xs text-gray-400 w-32 flex-shrink-0">{item.label}</p>
+                  <p className="text-xs font-semibold text-gray-800 text-right">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {app.guarantors && (
+            <div>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Guarantor Information</p>
+              <div className="space-y-2">
+                {[
+                  { label: 'Full Name', value: app.guarantors?.full_name },
+                  { label: 'Phone', value: app.guarantors?.phone },
+                  { label: 'Email', value: app.guarantors?.email },
+                  { label: 'Address', value: app.guarantors?.address },
+                  { label: 'Occupation', value: app.guarantors?.occupation },
+                  { label: 'BVN', value: app.guarantors?.bvn },
+                  { label: 'NIN', value: app.guarantors?.nin },
+                  { label: 'Relationship', value: app.guarantors?.relationship },
+                ].map((item, i) => item.value && (
+                  <div key={i} className="flex justify-between items-start bg-gray-50 rounded-lg px-3 py-2">
+                    <p className="text-xs text-gray-400 w-32 flex-shrink-0">{item.label}</p>
+                    <p className="text-xs font-semibold text-gray-800 text-right">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {app.rejection_reason && (
+            <div className="bg-red-50 rounded-lg p-3">
+              <p className="text-xs font-bold text-red-600 mb-1">Rejection Reason</p>
+              <p className="text-xs text-red-700">{app.rejection_reason}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -39,10 +123,9 @@ export default function Applications() {
   const [search, setSearch] = useState('')
   const [customRate, setCustomRate] = useState('')
   const [customDuration, setCustomDuration] = useState('')
+  const [viewApp, setViewApp] = useState(null)
 
-  useEffect(() => {
-    fetchApplications()
-  }, [])
+  useEffect(() => { fetchApplications() }, [])
 
   async function fetchApplications() {
     const { data } = await supabase
@@ -53,10 +136,12 @@ export default function Applications() {
     setLoading(false)
   }
 
-  function getWhatsAppLink(app) {
+  function getWhatsAppLink(app, settings) {
     const rawPhone = app.guarantors?.phone || ''
     const phone = rawPhone.startsWith('0') ? '234' + rawPhone.slice(1) : rawPhone
-    const message = `Hello ${app.guarantors?.full_name}, you have been listed as a guarantor for a loan application on Regnum Ventures. Please complete your guarantor form here: ${window.location.origin}/guarantor/${app.guarantor_token}`
+    const rate = app.custom_interest_rate || settings?.standard_interest_rate || 18
+    const duration = app.custom_duration_days || settings?.loan_duration_days || 30
+    const message = `Hello ${app.guarantors?.full_name}, you have been listed as a guarantor for a loan application on ${settings?.business_name || 'Regnum Ventures'}. The loan is at ${rate}% interest for ${duration} days. Please complete your guarantor form here: ${window.location.origin}/guarantor/${app.guarantor_token}`
     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
   }
 
@@ -65,22 +150,17 @@ export default function Applications() {
     setGenerating(true)
     try {
       const { data: applicant, error: applicantError } = await supabase
-        .from('applicants')
-        .insert({ full_name: 'Pending', phone: 'Pending' })
-        .select()
-        .single()
+        .from('applicants').insert({ full_name: 'Pending', phone: 'Pending' }).select().single()
       if (applicantError) throw applicantError
       const loaneeToken = crypto.randomUUID()
-      const { error: appError } = await supabase
-        .from('applications')
-        .insert({
-          applicant_id: applicant.id,
-          loan_amount_requested: parseFloat(loanAmount.replace(/,/g, '')),
-          status: 'pending_loanee',
-          loanee_token: loaneeToken,
-          custom_interest_rate: customRate ? parseFloat(customRate) : null,
-          custom_duration_days: customDuration ? parseInt(customDuration) : null,
-        })
+      const { error: appError } = await supabase.from('applications').insert({
+        applicant_id: applicant.id,
+        loan_amount_requested: parseFloat(loanAmount.replace(/,/g, '')),
+        status: 'pending_loanee',
+        loanee_token: loaneeToken,
+        custom_interest_rate: customRate ? parseFloat(customRate) : null,
+        custom_duration_days: customDuration ? parseInt(customDuration) : null,
+      })
       if (appError) throw appError
       const link = `${window.location.origin}/apply/${loaneeToken}`
       setNewLink(link)
@@ -89,56 +169,39 @@ export default function Applications() {
       setCustomRate('')
       setCustomDuration('')
       fetchApplications()
-    } catch (err) {
-      console.error(err)
-    }
+    } catch (err) { console.error(err) }
     setGenerating(false)
   }
 
   async function updateStatus(id, status, rejectionReason = null) {
-  const update = { status, reviewed_at: new Date().toISOString() }
-  if (rejectionReason) update.rejection_reason = rejectionReason
-  await supabase.from('applications').update(update).eq('id', id)
-
-  if (status === 'approved') {
-    const app = applications.find(a => a.id === id)
-    if (app) {
-      await logApplicationToSheets(app, app.applicants, app.guarantors)
-      await logLoaneeToSheets(app.applicants)
+    const update = { status, reviewed_at: new Date().toISOString() }
+    if (rejectionReason) update.rejection_reason = rejectionReason
+    await supabase.from('applications').update(update).eq('id', id)
+    if (status === 'approved') {
+      const app = applications.find(a => a.id === id)
+      if (app) {
+        await logApplicationToSheets(app, app.applicants, app.guarantors)
+        await logLoaneeToSheets(app.applicants)
+      }
     }
-  }
-
- async function deleteApplication(app) {
-  try {
-    if (app.guarantor_id) {
-      const { error: gError } = await supabase
-        .from('guarantors')
-        .delete()
-        .eq('id', app.guarantor_id)
-      if (gError) throw gError
-    }
-
-    const { error: appError } = await supabase
-      .from('applications')
-      .delete()
-      .eq('id', app.id)
-    if (appError) throw appError
-
-    if (app.applicant_id) {
-      await supabase
-        .from('applicants')
-        .delete()
-        .eq('id', app.applicant_id)
-    }
-
     fetchApplications()
-  } catch (err) {
-    console.error('Delete error:', err)
-    alert('Error: ' + err.message)
   }
-}
-  fetchApplications()
-}
+
+  async function deleteApplication(app) {
+    try {
+      if (app.guarantor_id) {
+        await supabase.from('guarantors').delete().eq('id', app.guarantor_id)
+      }
+      await supabase.from('applications').delete().eq('id', app.id)
+      if (app.applicant_id) {
+        await supabase.from('applicants').delete().eq('id', app.applicant_id)
+      }
+      fetchApplications()
+    } catch (err) {
+      console.error('Delete error:', err)
+      alert('Error deleting: ' + err.message)
+    }
+  }
 
   function copyLink(link) {
     navigator.clipboard.writeText(link)
@@ -170,6 +233,13 @@ export default function Applications() {
     )
   }
 
+  const [appSettings, setAppSettings] = useState(null)
+  useEffect(() => {
+    supabase.from('settings').select('*').single().then(({ data }) => {
+      if (data) setAppSettings(data)
+    })
+  }, [])
+
   return (
     <MainLayout>
       <div className="max-w-6xl mx-auto">
@@ -198,24 +268,20 @@ export default function Applications() {
             />
             <div className="flex gap-3">
               <div className="flex-1">
-                <label className="block text-xs font-medium text-gray-500 mb-1">
-                  Custom Interest Rate (%) — leave blank for default
-                </label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Custom Interest Rate (%) — leave blank for default ({appSettings?.standard_interest_rate || 18}%)</label>
                 <input
                   type="number"
-                  placeholder="e.g. 15"
+                  placeholder={`Default: ${appSettings?.standard_interest_rate || 18}%`}
                   value={customRate}
                   onChange={(e) => setCustomRate(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div className="flex-1">
-                <label className="block text-xs font-medium text-gray-500 mb-1">
-                  Custom Duration (days) — leave blank for default
-                </label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Custom Duration (days) — leave blank for default ({appSettings?.loan_duration_days || 30} days)</label>
                 <input
                   type="number"
-                  placeholder="e.g. 30"
+                  placeholder={`Default: ${appSettings?.loan_duration_days || 30} days`}
                   value={customDuration}
                   onChange={(e) => setCustomDuration(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -234,20 +300,10 @@ export default function Applications() {
 
           {showNewLink && newLink && (
             <div className="mt-4 p-4 bg-green-50 rounded-lg">
-              <p className="text-sm font-medium text-green-700 mb-2">
-                Application link generated. Send this to the loanee:
-              </p>
+              <p className="text-sm font-medium text-green-700 mb-2">Application link generated. Send this to the loanee:</p>
               <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newLink}
-                  readOnly
-                  className="flex-1 border border-green-300 rounded-lg px-3 py-2 text-sm bg-white"
-                />
-                <button
-                  onClick={() => copyLink(newLink)}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 transition"
-                >
+                <input type="text" value={newLink} readOnly className="flex-1 border border-green-300 rounded-lg px-3 py-2 text-sm bg-white" />
+                <button onClick={() => copyLink(newLink)} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 transition">
                   {copiedLink === newLink ? 'Copied!' : 'Copy'}
                 </button>
               </div>
@@ -280,28 +336,20 @@ export default function Applications() {
                 <div key={app.id} className="p-6">
                   <div className="flex justify-between items-start">
                     <div className="space-y-1">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <p className="font-medium text-gray-800">
-                          {app.applicants?.full_name === 'Pending'
-                            ? 'Awaiting applicant...'
-                            : app.applicants?.full_name}
+                          {app.applicants?.full_name === 'Pending' ? 'Awaiting applicant...' : app.applicants?.full_name}
                         </p>
                         {getStatusBadge(app.status)}
                       </div>
                       <p className="text-sm text-gray-500">
-                        Loan Amount: <span className="font-medium text-gray-700">
-                          ₦{Number(app.loan_amount_requested).toLocaleString()}
-                        </span>
+                        Loan Amount: <span className="font-medium text-gray-700">₦{Number(app.loan_amount_requested).toLocaleString()}</span>
                       </p>
                       {app.custom_interest_rate && (
-                        <p className="text-sm text-gray-500">
-                          Custom Rate: <span className="font-medium text-orange-600">{app.custom_interest_rate}%</span>
-                        </p>
+                        <p className="text-sm text-gray-500">Custom Rate: <span className="font-medium text-orange-600">{app.custom_interest_rate}%</span></p>
                       )}
                       {app.custom_duration_days && (
-                        <p className="text-sm text-gray-500">
-                          Custom Duration: <span className="font-medium text-orange-600">{app.custom_duration_days} days</span>
-                        </p>
+                        <p className="text-sm text-gray-500">Custom Duration: <span className="font-medium text-orange-600">{app.custom_duration_days} days</span></p>
                       )}
                       {app.applicants?.phone !== 'Pending' && (
                         <p className="text-sm text-gray-500">Phone: {app.applicants?.phone}</p>
@@ -316,10 +364,11 @@ export default function Applications() {
                         <p className="text-xs text-red-500">Reason: {app.rejection_reason}</p>
                       )}
                       <p className="text-xs text-gray-400">
-                        {new Date(app.created_at).toLocaleDateString('en-NG', {
-                          day: 'numeric', month: 'short', year: 'numeric'
-                        })}
+                        {new Date(app.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </p>
+                      <button onClick={() => setViewApp(app)} className="text-xs text-blue-600 font-medium hover:underline">
+                        View Details
+                      </button>
                     </div>
 
                     <div className="flex flex-col gap-2 items-end">
@@ -328,8 +377,7 @@ export default function Applications() {
                           onClick={() => copyLink(`${window.location.origin}/apply/${app.loanee_token}`)}
                           className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-lg hover:bg-gray-200 transition"
                         >
-                          {copiedLink === `${window.location.origin}/apply/${app.loanee_token}`
-                            ? 'Copied!' : 'Copy Loanee Link'}
+                          {copiedLink === `${window.location.origin}/apply/${app.loanee_token}` ? 'Copied!' : 'Copy Loanee Link'}
                         </button>
                       )}
                       {app.status === 'pending_guarantor' && app.guarantor_token && (
@@ -338,11 +386,10 @@ export default function Applications() {
                             onClick={() => copyLink(`${window.location.origin}/guarantor/${app.guarantor_token}`)}
                             className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-100 transition"
                           >
-                            {copiedLink === `${window.location.origin}/guarantor/${app.guarantor_token}`
-                              ? 'Copied!' : 'Copy Guarantor Link'}
+                            {copiedLink === `${window.location.origin}/guarantor/${app.guarantor_token}` ? 'Copied!' : 'Copy Guarantor Link'}
                           </button>
                           
-                            < a href={getWhatsAppLink(app)}
+                            <a href={getWhatsAppLink(app, appSettings)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition text-center"
@@ -371,45 +418,43 @@ export default function Applications() {
                         </div>
                       )}
                       {app.status === 'rejected' && (
-  <button
-    onClick={() => updateStatus(app.id, 'pending_review')}
-    className="text-xs bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition"
-  >
-    Reconsider
-  </button>
-)}
-{['pending_loanee', 'pending_guarantor', 'pending_review'].includes(app.status) && (
-  <button
-    onClick={() => {
-      if (window.confirm('Cancel this application? This cannot be undone.')) {
-        updateStatus(app.id, 'cancelled')
-      }
-    }}
-    className="text-xs bg-red-100 text-red-600 px-3 py-1 rounded-lg hover:bg-red-200 transition"
-  >
-    Cancel
-  </button>
-)}
-{app.status === 'cancelled' && (
-  <div className="flex flex-col gap-1">
-    <button
-      onClick={() => updateStatus(app.id, 'pending_review')}
-      className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-lg hover:bg-gray-200 transition"
-    >
-      Restore
-    </button>
-    <button
-      onClick={() => {
-  if (window.confirm('Permanently delete this application? This cannot be undone.')) {
-    deleteApplication(app)
-  }
-}}
-      className="text-xs bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700 transition"
-    >
-      Delete
-    </button>
-  </div>
-)}
+                        <button
+                          onClick={() => updateStatus(app.id, 'pending_review')}
+                          className="text-xs bg-gray-500 text-white px-3 py-1 rounded-lg hover:bg-gray-600 transition"
+                        >
+                          Reconsider
+                        </button>
+                      )}
+                      {['pending_loanee', 'pending_guarantor', 'pending_review'].includes(app.status) && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Cancel this application?')) updateStatus(app.id, 'cancelled')
+                          }}
+                          className="text-xs bg-red-100 text-red-600 px-3 py-1 rounded-lg hover:bg-red-200 transition"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                      {app.status === 'cancelled' && (
+                        <div className="flex flex-col gap-1">
+                          <button
+                            onClick={() => updateStatus(app.id, 'pending_review')}
+                            className="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-lg hover:bg-gray-200 transition"
+                          >
+                            Restore
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Permanently delete this application? This cannot be undone.')) {
+                                deleteApplication(app)
+                              }
+                            }}
+                            className="text-xs bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700 transition"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -417,6 +462,8 @@ export default function Applications() {
             </div>
           )}
         </div>
+
+        <ApplicationDetail app={viewApp} onClose={() => setViewApp(null)} />
 
       </div>
     </MainLayout>
