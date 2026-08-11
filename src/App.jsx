@@ -7,6 +7,7 @@ import Applications from './pages/Applications'
 import Loans from './pages/Loans'
 import Loanees from './pages/Loanees'
 import Settings from './pages/Settings'
+import Finance from './pages/Finance'
 import LoaneeForm from './pages/LoaneeForm'
 import GuarantorForm from './pages/GuarantorForm'
 
@@ -19,7 +20,6 @@ function App() {
       setSession(session)
       setLoading(false)
     })
-
     supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
     })
@@ -34,16 +34,15 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public routes - no login needed */}
         <Route path="/apply/:token" element={<LoaneeForm />} />
         <Route path="/guarantor/:token" element={<GuarantorForm />} />
-
-        {/* Protected routes */}
+        <Route path="/consent/:token" element={<GuarantorForm />} />
         <Route path="/" element={session ? <Navigate to="/dashboard" /> : <Login />} />
         <Route path="/dashboard" element={session ? <Dashboard /> : <Navigate to="/" />} />
         <Route path="/applications" element={session ? <Applications /> : <Navigate to="/" />} />
         <Route path="/loans" element={session ? <Loans /> : <Navigate to="/" />} />
         <Route path="/loanees" element={session ? <Loanees /> : <Navigate to="/" />} />
+        <Route path="/finance" element={session ? <Finance /> : <Navigate to="/" />} />
         <Route path="/settings" element={session ? <Settings /> : <Navigate to="/" />} />
       </Routes>
     </BrowserRouter>

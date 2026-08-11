@@ -380,24 +380,91 @@ export default function Applications() {
                           {copiedLink === `${window.location.origin}/apply/${app.loanee_token}` ? 'Copied!' : 'Copy Loanee Link'}
                         </button>
                       )}
-                      {app.status === 'pending_guarantor' && app.guarantor_token && (
-                        <div className="flex flex-col gap-1">
-                          <button
-                            onClick={() => copyLink(`${window.location.origin}/guarantor/${app.guarantor_token}`)}
-                            className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-100 transition"
-                          >
-                            {copiedLink === `${window.location.origin}/guarantor/${app.guarantor_token}` ? 'Copied!' : 'Copy Guarantor Link'}
-                          </button>
-                          
-                            <a href={getWhatsAppLink(app, appSettings)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition text-center"
-                          >
-                            Send via WhatsApp
-                          </a>
-                        </div>
-                      )}
+                      {app.status === 'pending_guarantor' &&
+  (app.guarantor_token || app.guarantor_consent_token) && (
+    <div className="flex flex-col gap-1">
+      {app.keep_guarantor && app.guarantor_consent_token ? (
+        <>
+          <button
+            onClick={() =>
+              copyLink(
+                `${window.location.origin}/consent/${app.guarantor_consent_token}`
+              )
+            }
+            className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-100 transition"
+          >
+            {copiedLink ===
+            `${window.location.origin}/consent/${app.guarantor_consent_token}`
+              ? 'Copied!'
+              : 'Copy Consent Link'}
+          </button>
+
+          <a
+            href={(() => {
+              const rawPhone = app.guarantors?.phone || '';
+              const phone = rawPhone.startsWith('0')
+                ? '234' + rawPhone.slice(1)
+                : rawPhone;
+
+              const rate =
+                app.custom_interest_rate ||
+                appSettings?.standard_interest_rate ||
+                18;
+
+              const duration =
+                app.custom_duration_days ||
+                appSettings?.loan_duration_days ||
+                30;
+
+              const message = `Hello ${app.guarantors?.full_name}, ${app.applicants?.full_name} has applied for a new loan on ${
+                appSettings?.business_name || 'Regnum Ventures'
+              } and listed you as guarantor again. Please consent here: ${
+                window.location.origin
+              }/consent/${
+                app.guarantor_consent_token
+              } — Loan: ₦${Number(
+                app.loan_amount_requested
+              ).toLocaleString()} at ${rate}% for ${duration} days.`;
+
+              return `https://wa.me/${phone}?text=${encodeURIComponent(
+                message
+              )}`;
+            })()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition text-center"
+          >
+            Send Consent via WhatsApp
+          </a>
+        </>
+      ) : (
+        <div className="flex flex-col gap-1">
+          <button
+            onClick={() =>
+              copyLink(
+                `${window.location.origin}/guarantor/${app.guarantor_token}`
+              )
+            }
+            className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-100 transition"
+          >
+            {copiedLink ===
+            `${window.location.origin}/guarantor/${app.guarantor_token}`
+              ? 'Copied!'
+              : 'Copy Guarantor Link'}
+          </button>
+
+          <a
+            href={getWhatsAppLink(app, appSettings)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition text-center"
+          >
+            Send via WhatsApp
+          </a>
+        </div>
+      )}
+    </div>
+  )}
                       {app.status === 'pending_review' && (
                         <div className="flex gap-2">
                           <button
