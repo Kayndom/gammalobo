@@ -1,4 +1,3 @@
-import { logCapitalInjectionToSheets, logWithdrawalToSheets } from '../lib/sheets'
 import { SHEETS_URL } from './supabase'
 
 async function sendToSheets(sheet, headers, row) {
