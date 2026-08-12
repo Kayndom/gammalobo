@@ -307,6 +307,30 @@ async function exportAll() {
       ].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
     })
   }
+  const { data: injections } = await supabase.from('capital_injections').select('*').order('injected_at', { ascending: false })
+const { data: withdrawals } = await supabase.from('profit_withdrawals').select('*').order('withdrawn_at', { ascending: false })
+
+if (injections?.length) {
+  sections.push('=== CAPITAL INJECTIONS ===')
+  const headers = ['id', 'amount', 'note', 'injected_at']
+  sections.push(headers.join(','))
+  injections.forEach(i => {
+    sections.push([i.id, i.amount, i.note, i.injected_at]
+      .map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
+  })
+  sections.push('')
+}
+
+if (withdrawals?.length) {
+  sections.push('=== WITHDRAWALS ===')
+  const headers = ['id', 'amount', 'withdrawal_type', 'note', 'withdrawn_at']
+  sections.push(headers.join(','))
+  withdrawals.forEach(w => {
+    sections.push([w.id, w.amount, w.withdrawal_type, w.note, w.withdrawn_at]
+      .map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
+  })
+  sections.push('')
+}
 
   if (!sections.length) return alert('No data to export')
 

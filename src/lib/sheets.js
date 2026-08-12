@@ -1,3 +1,4 @@
+import { logCapitalInjectionToSheets, logWithdrawalToSheets } from '../lib/sheets'
 import { SHEETS_URL } from './supabase'
 
 async function sendToSheets(sheet, headers, row) {
@@ -88,6 +89,22 @@ export async function logLoaneeToSheets(loanee) {
       loanee.account_number,
       loanee.account_name,
       loanee.created_at,
+      
     ]
+  )
+}
+export async function logCapitalInjectionToSheets(injection) {
+  await sendToSheets(
+    'Finance',
+    ['Type', 'Amount', 'Note', 'Date'],
+    ['Capital Injection', injection.amount, injection.note || '', injection.injected_at]
+  )
+}
+
+export async function logWithdrawalToSheets(withdrawal) {
+  await sendToSheets(
+    'Finance',
+    ['Type', 'Amount', 'Withdrawal Type', 'Note', 'Date'],
+    ['Withdrawal', withdrawal.amount, withdrawal.withdrawal_type, withdrawal.note || '', withdrawal.withdrawn_at]
   )
 }
