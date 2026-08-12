@@ -86,6 +86,7 @@ export default function Finance() {
         .filter(l => ['active', 'overdue'].includes(l.status))
         .reduce((s, l) => s + Number(l.amount_paid), 0)
       const totalReturned = settledLoanReturns + partialReturns
+      const totalRepaidFromActive = partialReturns
 
       // Available capital = total injected + all money returned - capital still out - withdrawals
       const availableCapital = totalInjected + totalReturned - capitalOutAsLoans - totalWithdrawn
@@ -100,23 +101,24 @@ export default function Finance() {
       const suggestedMonthlyEarnings = (totalInterestEarned * monthlyEarningsRate) / 100
 
       setSummary({
-        totalInjected,
-        totalWithdrawn,
-        capitalOutAsLoans,
-        outstandingBalance,
-        expectedRepaymentFromActive,
-        expectedInterestFromActive,
-        totalInterestEarned,
-        netProfit,
-        availableCapital,
-        grossPortfolio,
-        suggestedMonthlyEarnings,
-        monthlyEarningsRate,
-        totalLoans: loans.length,
-        settledLoans: loans.filter(l => l.status === 'settled').length,
-        activeLoans: loans.filter(l => ['active', 'overdue'].includes(l.status)).length,
-        returnOnCapital: totalInjected > 0 ? ((totalInterestEarned / totalInjected) * 100).toFixed(1) : 0,
-      })
+  totalInjected,
+  totalWithdrawn,
+  capitalOutAsLoans,
+  outstandingBalance,
+  expectedRepaymentFromActive,
+  expectedInterestFromActive,
+  totalRepaidFromActive,
+  totalInterestEarned,
+  netProfit,
+  availableCapital,
+  grossPortfolio,
+  suggestedMonthlyEarnings,
+  monthlyEarningsRate,
+  totalLoans: loans.length,
+  settledLoans: loans.filter(l => l.status === 'settled').length,
+  activeLoans: loans.filter(l => ['active', 'overdue'].includes(l.status)).length,
+  returnOnCapital: totalInjected > 0 ? ((totalInterestEarned / totalInjected) * 100).toFixed(1) : 0,
+})
     }
     setLoading(false)
   }
@@ -290,24 +292,52 @@ export default function Finance() {
               </div>
             </div>
 
-            {/* Loan repayment metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-              <div className="rounded-2xl p-5 shadow-sm bg-white border border-gray-100">
-                <p className="text-xs font-medium text-gray-400 mb-1">📋 Expected Total Repayment</p>
-                <p className="text-xl font-black text-gray-800">{fmt(summary.expectedRepaymentFromActive)}</p>
-                <p className="text-xs text-gray-400 mt-1">from active loans (capital + interest)</p>
-              </div>
-              <div className="rounded-2xl p-5 shadow-sm bg-white border border-gray-100">
-                <p className="text-xs font-medium text-gray-400 mb-1">📈 Expected Interest Only</p>
-                <p className="text-xl font-black" style={{ color: '#16a34a' }}>{fmt(summary.expectedInterestFromActive)}</p>
-                <p className="text-xs text-gray-400 mt-1">profit from active loans</p>
-              </div>
-              <div className="rounded-2xl p-5 shadow-sm bg-white border border-gray-100">
-                <p className="text-xs font-medium text-gray-400 mb-1">💵 Outstanding Balance</p>
-                <p className="text-xl font-black text-gray-800">{fmt(summary.outstandingBalance)}</p>
-                <p className="text-xs text-gray-400 mt-1">borrowers still owe</p>
-              </div>
-            </div>
+            {/* Active loan repayment breakdown */}
+<div className="bg-white rounded-2xl shadow-sm p-5 mb-4 border border-gray-100">
+  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4">Active Loan Repayment Tracker</p>
+  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+    <div className="rounded-xl p-4" style={{ background: '#f1f5f9' }}>
+      <p className="text-xs font-medium text-gray-400 mb-1">📋 Expected Total</p>
+      <p className="text-lg font-black text-gray-800">{fmt(summary.expectedRepaymentFromActive)}</p>
+      <p className="text-xs text-gray-400 mt-1">capital + interest agreed</p>
+    </div>
+    <div className="rounded-xl p-4" style={{ background: '#f0fdf4' }}>
+      <p className="text-xs font-medium text-gray-400 mb-1">✅ Amount Repaid</p>
+      <p className="text-lg font-black" style={{ color: '#16a34a' }}>{fmt(summary.totalRepaidFromActive)}</p>
+      <p className="text-xs text-gray-400 mt-1">received so far</p>
+    </div>
+    <div className="rounded-xl p-4" style={{ background: '#fff7ed' }}>
+      <p className="text-xs font-medium text-gray-400 mb-1">⏳ Still Outstanding</p>
+      <p className="text-lg font-black" style={{ color: '#ea580c' }}>{fmt(summary.outstandingBalance)}</p>
+      <p className="text-xs text-gray-400 mt-1">borrowers still owe</p>
+    </div>
+    <div className="rounded-xl p-4" style={{ background: '#f0fdf4' }}>
+      <p className="text-xs font-medium text-gray-400 mb-1">📈 Expected Interest</p>
+      <p className="text-lg font-black" style={{ color: '#16a34a' }}>{fmt(summary.expectedInterestFromActive)}</p>
+      <p className="text-xs text-gray-400 mt-1">profit still incoming</p>
+    </div>
+  </div>
+  {/* Progress bar */}
+  <div>
+    <div className="flex justify-between text-xs text-gray-400 mb-1">
+      <span>Repayment Progress</span>
+      <span>{summary.expectedRepaymentFromActive > 0
+        ? ((summary.totalRepaidFromActive / summary.expectedRepaymentFromActive) * 100).toFixed(1)
+        : 0}%</span>
+    </div>
+    <div className="w-full bg-gray-100 rounded-full h-3">
+      <div
+        className="h-3 rounded-full transition-all"
+        style={{
+          background: 'linear-gradient(135deg, #16a34a, #22c55e)',
+          width: `${summary.expectedRepaymentFromActive > 0
+            ? Math.min(100, (summary.totalRepaidFromActive / summary.expectedRepaymentFromActive) * 100)
+            : 0}%`
+        }}
+      />
+    </div>
+  </div>
+</div>
 
             {/* Profit metrics */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
