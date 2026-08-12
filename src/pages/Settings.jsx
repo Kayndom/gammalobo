@@ -43,6 +43,7 @@ const [syncMessage, setSyncMessage] = useState('')
         standard_interest_rate: settings.standard_interest_rate,
         penalty_interest_rate: settings.penalty_interest_rate,
         loan_duration_days: settings.loan_duration_days,
+        monthly_earnings_rate: settings.monthly_earnings_rate,
       })
       .eq('id', settings.id)
 
