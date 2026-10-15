@@ -181,8 +181,7 @@ export default function Loans() {
 
     const newAmountPaid = (selectedLoan.amount_paid || 0) + amount
     const newOutstanding = selectedLoan.total_owed - newAmountPaid
-    const newStatus = newOutstanding <= 0 ? 'settled' : 'active'
-
+    const newStatus = newOutstanding <= 0 ? 'settled' : selectedLoan.status === 'overdue' ? 'overdue' : 'active'
     await supabase.from('loans').update({
       amount_paid: newAmountPaid,
       outstanding_balance: newOutstanding <= 0 ? 0 : newOutstanding,
@@ -899,9 +898,9 @@ export default function Loans() {
                 </div>
               )}
 
-              {selectedLoan.status === 'active' && (
-                <div className="border-t pt-4">
-                  <h3 className="text-sm font-bold text-gray-700 mb-3">Record Payment</h3>
+              {['active', 'overdue'].includes(selectedLoan.status) && (
+  <div className="border-t pt-4">
+    <h3 className="text-sm font-bold text-gray-700 mb-3">Record Payment</h3>
                   <div className="space-y-3">
                     <input
                       type="text"
