@@ -9,7 +9,7 @@ This guide applies only to `Kayndom/gammalobo` on `feature/finance-investors-res
 - Confirmation starts the investment term and interest clock on the actual receipt date.
 - Simple interest is calculated against the original principal, with partial periods prorated.
 - Investor principal and interest payouts are recorded separately and cannot exceed the recorded outstanding amounts.
-- Loan repayments are allocated principal-first, then interest. Allocation is tracked separately for each rollover cycle.
+- Loan repayments are allocated principal-first, then interest. Allocation is tracked separately for each rollover cycle; this supports collected-interest reporting in Finance.
 - Finance shows recorded cash movement and collected loan interest separately. It does not label all borrower repayments as profit.
 - The fresh-start script preserves `auth.users` and `public.settings`.
 
