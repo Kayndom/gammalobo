@@ -41,7 +41,7 @@ export default function Finance() {
       supabase.from('investments').select('id,investor_id,principal,status,funded_at,investors(full_name)'),
       supabase.from('investor_payments').select('id,investment_id,amount,payment_type,payment_date,investments(investors(full_name))'),
       supabase.from('investor_accruals').select('investment_id,amount'),
-      supabase.from('instalments').select('id,loan_id,amount_paid,allocated_principal,allocated_interest,payment_date,loans(applicants(full_name))'),
+      supabase.from('instalments').select('id,loan_id,rollover_number,amount_paid,allocated_principal,allocated_interest,payment_date,loans(applicants(full_name))'),
       supabase.from('loan_logs').select('id,loan_id,amount,created_at,description,loans(applicants(full_name))').eq('activity_type', 'disbursement')
     ])
     const failed = results.find(result => result.error)
