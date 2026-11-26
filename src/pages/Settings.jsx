@@ -235,6 +235,8 @@ async function handleImport(e) {
   }
 }
 async function exportAll() {
+  // Every business-data table currently used by the application.
+  // Fetch in pages so Supabase's default row limit cannot silently truncate backups.
   const tables = [
     'settings',
     'applicants',
@@ -254,34 +256,70 @@ async function exportAll() {
   ]
 
   setImportMessage('')
-  const results = await Promise.all(tables.map(async table => {
-    const { data, error } = await supabase.from(table).select('*')
-    return { table, data, error }
-  }))
-  const failed = results.filter(result => result.error)
-  if (failed.length) {
-    alert('Backup was not created. Could not read: ' + failed.map(item => item.table + ' (' + item.error.message + ')').join('; '))
-    return
-  }
+  const backupTables = {}
+  const recordCounts = {}
+  const pageSize = 1000
 
-  const date = new Date().toISOString()
-  const backup = {
-    format: 'REGNUM_FULL_BACKUP',
-    version: 1,
-    created_at: date,
-    business: settings?.business_name || 'REGNUM Ventures',
-    note: 'Data snapshot only. Keep securely. Restoring requires a controlled database restore; do not import this file as ordinary CSV.',
-    tables: Object.fromEntries(results.map(result => [result.table, result.data || []])),
-    record_counts: Object.fromEntries(results.map(result => [result.table, (result.data || []).length])),
+  try {
+    for (const table of tables) {
+      let allRows = []
+      let from = 0
+      while (true) {
+        const to = from + pageSize - 1
+        const { data, error } = await supabase
+          .from(table)
+          .select('*')
+          .range(from, to)
+
+        if (error) throw new Error(table + ': ' + error.message)
+        const page = data || []
+        allRows = allRows.concat(page)
+        if (page.length < pageSize) break
+        from += pageSize
+      }
+      backupTables[table] = allRows
+      recordCounts[table] = allRows.length
+    }
+
+    const date = new Date().toISOString()
+    const totalRecords = Object.values(recordCounts).reduce((sum, count) => sum + count, 0)
+    const backup = {
+      format: 'REGNUM_COMPLETE_APP_DATA_BACKUP',
+      version: 2,
+      created_at: date,
+      business: settings?.business_name || 'REGNUM Ventures',
+      coverage: {
+        description: 'Complete row-level snapshot of all application business-data tables listed below.',
+        tables_included: tables,
+        record_counts: recordCounts,
+        total_records: totalRecords,
+        pagination: 'Fetched in pages of 1000 rows until every table was exhausted.',
+        excludes: [
+          'Supabase Auth credentials and password hashes (security-sensitive platform data, not available to the app export)',
+          'Supabase platform configuration, API keys and database schema definitions',
+          'External Google Sheets copies (these are separate external documents)',
+          'Storage files, because this application currently has no active user-document upload workflow in this backup',
+        ],
+      },
+      tables: backupTables,
+      record_counts: recordCounts,
+      total_records: totalRecords,
+    }
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `regnum_complete_app_backup_${date.slice(0, 10)}.json`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+    alert('Complete application data backup downloaded: ' + totalRecords + ' records across ' + tables.length + ' data tables. See the coverage section inside the file for exact counts and exclusions. Store it securely.')
+  } catch (err) {
+    alert('Backup was not created. ' + err.message + '. No partial backup was downloaded.')
+    console.error('Complete backup failed:', err)
   }
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `regnum_full_backup_${date.slice(0, 10)}.json`
-  a.click()
-  URL.revokeObjectURL(url)
-  alert('Full backup downloaded successfully. It contains ' + results.reduce((sum, item) => sum + (item.data || []).length, 0) + ' records across ' + tables.length + ' data groups. Store the file securely.')
 }
 async function syncAllToSheets() {
   setSyncing(true)
