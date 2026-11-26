@@ -521,7 +521,7 @@ async function syncAllToSheets() {
                   type="text"
                   value={settings.business_name || ''}
                   onChange={(e) => handleChange('business_name', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
                 />
               </div>
               <div>
@@ -530,7 +530,7 @@ async function syncAllToSheets() {
                   type="text"
                   value={settings.repayment_bank || ''}
                   onChange={(e) => handleChange('repayment_bank', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
                 />
               </div>
               <div>
@@ -539,7 +539,7 @@ async function syncAllToSheets() {
                   type="text"
                   value={settings.repayment_account_name || ''}
                   onChange={(e) => handleChange('repayment_account_name', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
                 />
               </div>
               <div>
@@ -548,7 +548,7 @@ async function syncAllToSheets() {
                   type="text"
                   value={settings.repayment_account_no || ''}
                   onChange={(e) => handleChange('repayment_account_no', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
                 />
               </div>
             </div>
@@ -567,7 +567,7 @@ async function syncAllToSheets() {
                   type="number"
                   value={settings.standard_interest_rate || ''}
                   onChange={(e) => handleChange('standard_interest_rate', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
                 />
               </div>
               <div>
@@ -578,7 +578,7 @@ async function syncAllToSheets() {
                   type="number"
                   value={settings.penalty_interest_rate || ''}
                   onChange={(e) => handleChange('penalty_interest_rate', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
                 />
               </div>
               <div>
@@ -589,7 +589,7 @@ async function syncAllToSheets() {
                   type="number"
                   value={settings.loan_duration_days || ''}
                   onChange={(e) => handleChange('loan_duration_days', e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
                 />
               </div>
               <div>
@@ -600,7 +600,7 @@ async function syncAllToSheets() {
     type="number"
     value={settings.monthly_earnings_rate || ''}
     onChange={(e) => handleChange('monthly_earnings_rate', e.target.value)}
-    className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+    className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
   />
   <p className="text-xs text-gray-400 mt-1">Percentage of total profit suggested as your monthly earnings</p>
 </div>
@@ -630,7 +630,7 @@ async function syncAllToSheets() {
       placeholder="Enter new password"
       value={password}
       onChange={(e) => setPassword(e.target.value)}
-      className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+      className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
     />
     {passwordMessage && (
       <p className={`text-sm ${passwordMessage.includes('Error') ? 'text-red-500' : 'text-green-600'}`}>
