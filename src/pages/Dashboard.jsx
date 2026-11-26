@@ -30,12 +30,18 @@ export default function Dashboard() {
       .select('*')
       .in('status', ['pending_loanee', 'pending_guarantor', 'pending_review'])
 
+    const { data: disbursements } = await supabase
+      .from('loan_logs')
+      .select('amount')
+      .eq('activity_type', 'disbursement')
+
     if (loans) {
       const activeLoans = loans.filter(l => l.status === 'active')
       const overdueLoans = loans.filter(l => l.status === 'overdue')
       const settledLoans = loans.filter(l => l.status === 'settled')
       const totalOutstanding = activeLoans.reduce((sum, l) => sum + Number(l.outstanding_balance), 0)
-      const totalDisbursed = loans.reduce((sum, l) => sum + Number(l.principal), 0)
+      // Count actual cash disbursement events only. A rollover is not a new cash disbursement.
+      const totalDisbursed = (disbursements || []).reduce((sum, item) => sum + Number(item.amount || 0), 0)
 
       setStats({
         activeLoans: activeLoans.length,
