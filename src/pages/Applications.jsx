@@ -23,11 +23,11 @@ function ApplicationDetail({ app, onClose }) {
   return (
     <div className="fixed inset-0 z-[60] bg-slate-950/55 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-0 sm:p-5" onClick={onClose}>
       <section role="dialog" aria-modal="true" aria-label="Application details" onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-2xl rounded-t-2xl sm:rounded-xl shadow-2xl overflow-y-auto" style={{ maxHeight: '94dvh' }}>
-        <div className="p-5 sm:p-6 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white z-10">
+        <div className="p-5 sm:p-6 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white/95 backdrop-blur z-10">
           <div><p className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Application record</p><h2 className="font-bold text-lg text-slate-900 mt-1">Application Details</h2></div>
-          <button type="button" onClick={onClose} aria-label="Close application details" className="w-9 h-9 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50">×</button>
+          <button type="button" onClick={onClose} aria-label="Close application details" className="w-9 h-9 shrink-0 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500">×</button>
         </div>
-        <div className="p-5 space-y-5">
+        <div className="p-5 sm:p-6 space-y-5">
           <div>
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Loan Info</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
