@@ -24,19 +24,23 @@ export default function Finance() {
   const [capitalForm, setCapitalForm] = useState({ amount: '', note: '' })
   const [withdrawalForm, setWithdrawalForm] = useState({ amount: '', withdrawal_type: 'earnings', note: '' })
   const [reportMonth, setReportMonth] = useState(() => new Date().toISOString().slice(0, 7))
+  const [ledgerSearch, setLedgerSearch] = useState('')
+  const [ledgerType, setLedgerType] = useState('all')
+  const [ledgerFrom, setLedgerFrom] = useState('')
+  const [ledgerTo, setLedgerTo] = useState('')
 
   async function load() {
     setLoading(true)
     setError('')
     const results = await Promise.all([
-      supabase.from('loans').select('id,principal,outstanding_balance,status'),
-      supabase.from('capital_injections').select('amount,note,injected_at'),
-      supabase.from('profit_withdrawals').select('amount,withdrawal_type,withdrawn_at,note'),
-      supabase.from('investments').select('principal,status,funded_at'),
-      supabase.from('investor_payments').select('amount,payment_type,payment_date'),
+      supabase.from('loans').select('id,principal,outstanding_balance,status,applicants(full_name)'),
+      supabase.from('capital_injections').select('id,amount,note,injected_at'),
+      supabase.from('profit_withdrawals').select('id,amount,withdrawal_type,withdrawn_at,note'),
+      supabase.from('investments').select('id,principal,status,funded_at,investors(full_name)'),
+      supabase.from('investor_payments').select('id,amount,payment_type,payment_date,investments(investors(full_name))'),
       supabase.from('investor_accruals').select('amount'),
-      supabase.from('instalments').select('amount_paid,allocated_principal,allocated_interest,payment_date'),
-      supabase.from('loan_logs').select('amount,created_at').eq('activity_type', 'disbursement')
+      supabase.from('instalments').select('id,loan_id,amount_paid,allocated_principal,allocated_interest,payment_date,loans(applicants(full_name))'),
+      supabase.from('loan_logs').select('id,loan_id,amount,created_at,description,loans(applicants(full_name))').eq('activity_type', 'disbursement')
     ])
     const failed = results.find(result => result.error)
     if (failed) setError(failed.error.message)
@@ -139,6 +143,25 @@ export default function Finance() {
     ['Net cash-basis operating profit', monthlyOperatingProfit, 'Loan interest collected less investor interest paid and operating expenses']
   ]
 
+  const transactionLedger = [
+    ...injections.map(row => ({ id: 'capital-' + row.id, date: row.injected_at, type: 'Owner capital', detail: row.note || 'Owner capital injection', party: 'Business owner', amount: Number(row.amount || 0), direction: 'Inflow' })),
+    ...investments.filter(row => row.funded_at && row.status !== 'cancelled').map(row => ({ id: 'funding-' + row.id, date: row.funded_at, type: 'Investor funding', detail: 'Investment funds received', party: row.investors?.full_name || 'Investor', amount: Number(row.principal || 0), direction: 'Inflow' })),
+    ...disbursements.map(row => ({ id: 'disbursement-' + row.id, date: row.created_at, type: 'Loan disbursement', detail: row.description || 'Loan principal disbursed', party: row.loans?.applicants?.full_name || 'Borrower', amount: Number(row.amount || 0), direction: 'Outflow' })),
+    ...instalments.map(row => ({ id: 'repayment-' + row.id, date: row.payment_date, type: 'Borrower repayment', detail: 'Principal: ' + money(row.allocated_principal) + ' · Interest: ' + money(row.allocated_interest), party: row.loans?.applicants?.full_name || 'Borrower', amount: Number(row.amount_paid || 0), direction: 'Inflow' })),
+    ...investorPayments.map(row => ({ id: 'investor-payment-' + row.id, date: row.payment_date, type: row.payment_type === 'principal' ? 'Investor principal returned' : 'Investor interest paid', detail: 'Recorded investor payment', party: row.investments?.investors?.full_name || 'Investor', amount: Number(row.amount || 0), direction: 'Outflow' })),
+    ...withdrawals.map(row => ({ id: 'withdrawal-' + row.id, date: row.withdrawn_at, type: row.withdrawal_type === 'expense' ? 'Business expense' : row.withdrawal_type === 'profit_to_capital' ? 'Profit moved to capital' : row.withdrawal_type === 'bonus' ? 'Owner bonus' : 'Owner earnings withdrawal', detail: row.note || 'No note provided', party: row.withdrawal_type === 'expense' ? 'Business' : 'Owner', amount: Number(row.amount || 0), direction: row.withdrawal_type === 'profit_to_capital' ? 'Non-cash' : 'Outflow' }))
+  ].filter(row => row.date).sort((a, b) => new Date(b.date) - new Date(a.date))
+  const filteredLedger = transactionLedger.filter(row => {
+    const date = String(row.date).slice(0, 10)
+    const matchesType = ledgerType === 'all' || row.type === ledgerType
+    const matchesFrom = !ledgerFrom || date >= ledgerFrom
+    const matchesTo = !ledgerTo || date <= ledgerTo
+    const term = ledgerSearch.trim().toLowerCase()
+    const matchesSearch = !term || [row.type, row.detail, row.party, row.direction].join(' ').toLowerCase().includes(term)
+    return matchesType && matchesFrom && matchesTo && matchesSearch
+  })
+  const ledgerTypes = [...new Set(transactionLedger.map(row => row.type))].sort()
+
   const cards = [
     ['Recorded net cash movement', money(stats.cashMovementEstimate), 'Estimated from recorded cash transactions; reconcile with bank balance'],
     ['Owner capital injected', money(stats.ownerCapital), 'Owner funding, not revenue'],
@@ -232,6 +255,18 @@ export default function Finance() {
           <div><p className="text-gray-500">Interest paid</p><strong>{money(stats.investorInterestPaid)}</strong></div>
         </div>
         <a href="/investors" className="inline-block mt-4 text-sm font-semibold text-blue-700">Manage investors →</a>
+      </section>
+      <section className="bg-white rounded-2xl border p-5 space-y-4">
+        <div><h2 className="font-bold text-gray-800">Financial transaction history</h2><p className="text-sm text-gray-500">Search and trace recorded cash movements across lending, investors and business expenses.</p></div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <input value={ledgerSearch} onChange={e=>setLedgerSearch(e.target.value)} placeholder="Search person, type or note" className="border rounded-lg p-2 text-sm"/>
+          <select value={ledgerType} onChange={e=>setLedgerType(e.target.value)} className="border rounded-lg p-2 text-sm"><option value="all">All transaction types</option>{ledgerTypes.map(type=><option key={type} value={type}>{type}</option>)}</select>
+          <label className="text-xs text-gray-500">From<input type="date" value={ledgerFrom} onChange={e=>setLedgerFrom(e.target.value)} className="block w-full border rounded-lg p-2 text-sm"/></label>
+          <label className="text-xs text-gray-500">To<input type="date" value={ledgerTo} onChange={e=>setLedgerTo(e.target.value)} className="block w-full border rounded-lg p-2 text-sm"/></label>
+        </div>
+        <div className="flex justify-between items-center text-xs text-gray-500"><span>{filteredLedger.length} transaction(s)</span><button onClick={()=>{setLedgerSearch('');setLedgerType('all');setLedgerFrom('');setLedgerTo('')}} className="text-blue-700 font-semibold">Clear filters</button></div>
+        {filteredLedger.length ? <div className="overflow-x-auto"><table className="w-full text-sm min-w-[680px]"><thead><tr className="text-left text-xs text-gray-500 border-b"><th className="py-2 pr-3">Date</th><th className="py-2 pr-3">Transaction</th><th className="py-2 pr-3">Person / account</th><th className="py-2 pr-3">Details</th><th className="py-2 text-right">Amount</th></tr></thead><tbody>{filteredLedger.map(row=><tr key={row.id} className="border-b last:border-0 align-top"><td className="py-3 pr-3 whitespace-nowrap">{new Date(row.date).toLocaleDateString('en-NG')}</td><td className="py-3 pr-3 font-medium">{row.type}<span className="block text-[11px] text-gray-400">{row.direction}</span></td><td className="py-3 pr-3">{row.party}</td><td className="py-3 pr-3 text-gray-500 max-w-xs">{row.detail}</td><td className="py-3 text-right font-semibold whitespace-nowrap">{money(row.amount)}</td></tr>)}</tbody></table></div> : <p className="text-sm text-gray-400 py-4">No transactions match these filters.</p>}
+        <p className="text-xs text-gray-500">This history displays recorded transactions only. It does not create, edit or delete ledger entries. Accruals are not cash transactions and are excluded from this cash-movement history.</p>
       </section>
       <section className="bg-white rounded-2xl border p-5">
         <h2 className="font-bold text-gray-800 mb-3">Recent capital injections</h2>
