@@ -437,7 +437,7 @@ async function restoreMissingBackupRecords() {
     setRestoreResult(data)
     await compareBackupWithLive()
   } catch (err) {
-    setRestoreError('Restore failed. The database transaction was rolled back; no partial restore was kept. ' + (err.message || 'Unknown error'))
+    setRestoreError('Restore could not be confirmed. Check the live comparison before retrying; the database function is transactional and rolls back on database errors. ' + (err.message || 'Unknown error'))
   } finally {
     setRestoringBackup(false)
   }
