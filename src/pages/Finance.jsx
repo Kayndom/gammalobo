@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import MainLayout from '../layouts/MainLayout'
 import { supabase } from '../lib/supabase'
 
@@ -9,6 +9,8 @@ const cashWithdrawalTypes = ['earnings', 'bonus', 'expense']
 export default function Finance() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const capitalLock = useRef(false)
+  const withdrawalLock = useRef(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [loans, setLoans] = useState([])
@@ -61,24 +63,36 @@ export default function Finance() {
 
   async function addCapital(e) {
     e.preventDefault()
+    if (capitalLock.current) return
     const amount = Number(String(capitalForm.amount).replace(/,/g, ''))
     if (!(amount > 0)) return setError('Enter a valid capital amount.')
+    capitalLock.current = true
     setSaving(true); setError(''); setMessage('')
-    const { error } = await supabase.from('capital_injections').insert({ amount, note: capitalForm.note })
-    if (error) setError(error.message)
-    else { setCapitalForm({ amount: '', note: '' }); setShowCapitalForm(false); setMessage('Owner capital injection recorded.'); await load() }
-    setSaving(false)
+    try {
+      const { error } = await supabase.from('capital_injections').insert({ amount, note: capitalForm.note })
+      if (error) setError(error.message)
+      else { setCapitalForm({ amount: '', note: '' }); setShowCapitalForm(false); setMessage('Owner capital injection recorded.'); await load() }
+    } finally {
+      capitalLock.current = false
+      setSaving(false)
+    }
   }
 
   async function addWithdrawal(e) {
     e.preventDefault()
+    if (withdrawalLock.current) return
     const amount = Number(String(withdrawalForm.amount).replace(/,/g, ''))
     if (!(amount > 0)) return setError('Enter a valid withdrawal amount.')
+    withdrawalLock.current = true
     setSaving(true); setError(''); setMessage('')
-    const { error } = await supabase.from('profit_withdrawals').insert({ ...withdrawalForm, amount })
-    if (error) setError(error.message)
-    else { setWithdrawalForm({ amount: '', withdrawal_type: 'earnings', note: '' }); setShowWithdrawalForm(false); setMessage('Finance transaction recorded.'); await load() }
-    setSaving(false)
+    try {
+      const { error } = await supabase.from('profit_withdrawals').insert({ ...withdrawalForm, amount })
+      if (error) setError(error.message)
+      else { setWithdrawalForm({ amount: '', withdrawal_type: 'earnings', note: '' }); setShowWithdrawalForm(false); setMessage('Finance transaction recorded.'); await load() }
+    } finally {
+      withdrawalLock.current = false
+      setSaving(false)
+    }
   }
 
   const stats = useMemo(() => {
