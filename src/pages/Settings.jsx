@@ -235,113 +235,53 @@ async function handleImport(e) {
   }
 }
 async function exportAll() {
-  const [
-    { data: loans },
-    { data: loanees },
-    { data: payments },
-    { data: applications }
-  ] = await Promise.all([
-    supabase.from('loans').select('*, applicants(full_name, phone), guarantors(full_name, phone)').order('created_at', { ascending: false }),
-    supabase.from('applicants').select('*').not('full_name', 'eq', 'Pending').order('created_at', { ascending: false }),
-    supabase.from('instalments').select('*, loans(applicants(full_name))').order('recorded_at', { ascending: false }),
-    supabase.from('applications').select('*, applicants(full_name, phone), guarantors(full_name, phone)').order('created_at', { ascending: false }),
-  ])
+  const tables = [
+    'settings',
+    'applicants',
+    'guarantors',
+    'applications',
+    'loans',
+    'instalments',
+    'loan_logs',
+    'rollovers',
+    'capital_injections',
+    'profit_withdrawals',
+    'investors',
+    'investments',
+    'investor_accruals',
+    'investor_payments',
+    'audit_logs',
+  ]
 
-  const date = new Date().toISOString().slice(0, 10)
-
-  const sections = []
-
-  if (loans?.length) {
-    sections.push('=== LOANS ===')
-    const headers = ['id','loanee','phone','guarantor','guarantor_phone','principal','interest_rate','interest_amount','total_owed','amount_paid','outstanding_balance','loan_type','status','rollover_count','disbursed_at','due_date','created_at']
-    sections.push(headers.join(','))
-    loans.forEach(l => {
-      sections.push([
-        l.id, l.applicants?.full_name, l.applicants?.phone,
-        l.guarantors?.full_name, l.guarantors?.phone,
-        l.principal, l.interest_rate, l.interest_amount,
-        l.total_owed, l.amount_paid, l.outstanding_balance,
-        l.loan_type, l.status, l.rollover_count,
-        l.disbursed_at, l.due_date, l.created_at
-      ].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
-    })
-    sections.push('')
+  setImportMessage('')
+  const results = await Promise.all(tables.map(async table => {
+    const { data, error } = await supabase.from(table).select('*')
+    return { table, data, error }
+  }))
+  const failed = results.filter(result => result.error)
+  if (failed.length) {
+    alert('Backup was not created. Could not read: ' + failed.map(item => item.table + ' (' + item.error.message + ')').join('; '))
+    return
   }
 
-  if (loanees?.length) {
-    sections.push('=== LOANEES ===')
-    const headers = ['id','full_name','phone','email','address','occupation','bvn','nin','id_type','id_number','bank_name','account_number','account_name','created_at']
-    sections.push(headers.join(','))
-    loanees.forEach(l => {
-      sections.push([
-        l.id, l.full_name, l.phone, l.email, l.address,
-        l.occupation, l.bvn, l.nin, l.id_type, l.id_number,
-        l.bank_name, l.account_number, l.account_name, l.created_at
-      ].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
-    })
-    sections.push('')
+  const date = new Date().toISOString()
+  const backup = {
+    format: 'REGNUM_FULL_BACKUP',
+    version: 1,
+    created_at: date,
+    business: settings?.business_name || 'REGNUM Ventures',
+    note: 'Data snapshot only. Keep securely. Restoring requires a controlled database restore; do not import this file as ordinary CSV.',
+    tables: Object.fromEntries(results.map(result => [result.table, result.data || []])),
+    record_counts: Object.fromEntries(results.map(result => [result.table, (result.data || []).length])),
   }
-
-  if (payments?.length) {
-    sections.push('=== PAYMENTS ===')
-    const headers = ['id','loan_id','loanee','amount_paid','payment_date','note','recorded_at']
-    sections.push(headers.join(','))
-    payments.forEach(p => {
-      sections.push([
-        p.id, p.loan_id, p.loans?.applicants?.full_name,
-        p.amount_paid, p.payment_date, p.note, p.recorded_at
-      ].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
-    })
-    sections.push('')
-  }
-
-  if (applications?.length) {
-    sections.push('=== APPLICATIONS ===')
-    const headers = ['id','loanee','phone','guarantor','guarantor_phone','loan_amount_requested','status','rejection_reason','created_at','reviewed_at']
-    sections.push(headers.join(','))
-    applications.forEach(a => {
-      sections.push([
-        a.id, a.applicants?.full_name, a.applicants?.phone,
-        a.guarantors?.full_name, a.guarantors?.phone,
-        a.loan_amount_requested, a.status, a.rejection_reason,
-        a.created_at, a.reviewed_at
-      ].map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
-    })
-  }
-  const { data: injections } = await supabase.from('capital_injections').select('*').order('injected_at', { ascending: false })
-const { data: withdrawals } = await supabase.from('profit_withdrawals').select('*').order('withdrawn_at', { ascending: false })
-
-if (injections?.length) {
-  sections.push('=== CAPITAL INJECTIONS ===')
-  const headers = ['id', 'amount', 'note', 'injected_at']
-  sections.push(headers.join(','))
-  injections.forEach(i => {
-    sections.push([i.id, i.amount, i.note, i.injected_at]
-      .map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
-  })
-  sections.push('')
-}
-
-if (withdrawals?.length) {
-  sections.push('=== WITHDRAWALS ===')
-  const headers = ['id', 'amount', 'withdrawal_type', 'note', 'withdrawn_at']
-  sections.push(headers.join(','))
-  withdrawals.forEach(w => {
-    sections.push([w.id, w.amount, w.withdrawal_type, w.note, w.withdrawn_at]
-      .map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
-  })
-  sections.push('')
-}
-
-  if (!sections.length) return alert('No data to export')
-
-  const blob = new Blob([sections.join('\n')], { type: 'text/csv' })
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `regnum_full_backup_${date}.csv`
+  a.download = `regnum_full_backup_${date.slice(0, 10)}.json`
   a.click()
   URL.revokeObjectURL(url)
+  alert('Full backup downloaded successfully. It contains ' + results.reduce((sum, item) => sum + (item.data || []).length, 0) + ' records across ' + tables.length + ' data groups. Store the file securely.')
 }
 async function syncAllToSheets() {
   setSyncing(true)
@@ -588,7 +528,7 @@ async function syncAllToSheets() {
   className="w-full py-2 rounded-lg text-sm font-medium text-white hover:opacity-90 transition"
   style={{ background: '#24384b' }}
 >
-  Export Everything (Full Backup)
+  Download Complete Backup (JSON)
 </button>
 <div className="border-t pt-3">
   <p className="text-xs text-gray-500 mb-2">Sync all existing data to Google Sheets</p>
@@ -607,7 +547,7 @@ async function syncAllToSheets() {
   </button>
 </div>
     <div className="border-t pt-3">
-      <p className="text-xs text-gray-500 mb-2">Import CSV backup to restore data</p>
+      <p className="text-xs text-gray-500 mb-2">Legacy CSV import (limited)</p><p className="text-xs text-amber-700 mb-2">This is not a full restore tool. It can import borrower rows only; other CSV files are only checked, not restored. Do not use it to restore financial records.</p>
       <label className="w-full py-2 rounded-lg text-sm font-medium text-center block cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-400 transition text-gray-500">
         Click to Import CSV
         <input
