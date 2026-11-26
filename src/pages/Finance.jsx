@@ -31,7 +31,7 @@ export default function Finance() {
       supabase.from('profit_withdrawals').select('amount,withdrawal_type,withdrawn_at,note'),
       supabase.from('investments').select('principal,status,funded_at'),
       supabase.from('investor_payments').select('amount,payment_type,payment_date'),
-      supabase.from('instalments').select('amount_paid,payment_date'),
+      supabase.from('instalments').select('amount_paid,allocated_principal,allocated_interest,payment_date'),
       supabase.from('loan_logs').select('amount,created_at').eq('activity_type', 'disbursement')
     ])
     const failed = results.find(result => result.error)
@@ -82,6 +82,9 @@ export default function Finance() {
     const profitMovedToCapital = sum(withdrawals.filter(item => item.withdrawal_type === 'profit_to_capital'))
     const investorPrincipalReturned = sum(investorPayments.filter(item => item.payment_type === 'principal'))
     const investorInterestPaid = sum(investorPayments.filter(item => item.payment_type === 'interest'))
+    const realisedLoanInterest = sum(instalments, 'allocated_interest')
+    const cashBasisNetInterest = realisedLoanInterest - investorInterestPaid
+    const cashBasisOperatingProfit = cashBasisNetInterest - operatingExpenses
     const investorPrincipalOutstanding = Math.max(0, investorFundingReceived - investorPrincipalReturned)
     const cashOutflows = operatingExpenses + ownerWithdrawals + sum(investorPayments) + loanCashDisbursed
     const cashMovementEstimate = ownerCapital + investorFundingReceived + borrowerCashReceived - cashOutflows
@@ -89,6 +92,7 @@ export default function Finance() {
       ownerCapital, investorFundingReceived, borrowerCashReceived, loanCashDisbursed,
       operatingExpenses, ownerWithdrawals, profitMovedToCapital,
       investorPrincipalReturned, investorInterestPaid, investorPrincipalOutstanding,
+      realisedLoanInterest, cashBasisNetInterest, cashBasisOperatingProfit,
       cashMovementEstimate, borrowerReceivables: sum(activeLoans, 'outstanding_balance'),
       activeLoanCount: activeLoans.length, cashOutflows
     }
@@ -102,6 +106,8 @@ export default function Finance() {
     ['Investor capital received', money(stats.investorFundingReceived), 'External funding and repayable liability'],
     ['Loan principal disbursed', money(stats.loanCashDisbursed), 'Actual principal cash outflow recorded at disbursement'],
     ['Borrower repayments received', money(stats.borrowerCashReceived), 'All recorded instalments; not all profit'],
+    ['Loan interest actually collected', money(stats.realisedLoanInterest), 'Principal-first allocation from recorded repayments'],
+    ['Cash-basis profit after investor interest and expenses', money(stats.cashBasisOperatingProfit), 'Collected loan interest less investor interest paid and operating expenses'],
     ['Outstanding borrower receivables', money(stats.borrowerReceivables), stats.activeLoanCount + ' active or overdue loans'],
     ['Investor principal outstanding', money(stats.investorPrincipalOutstanding), 'Investor funding less principal repaid'],
     ['Investor interest paid', money(stats.investorInterestPaid), 'Recorded interest payouts'],
@@ -143,7 +149,8 @@ export default function Finance() {
         <h2 className="font-bold text-gray-800">Accounting interpretation</h2>
         <p className="text-sm text-gray-600">Investor principal is a repayable liability, not revenue. Owner capital is funding, not profit. Principal returned to investors reduces cash and the liability; investor interest and operating expenses are costs.</p>
         <p className="text-sm text-gray-600">Moving profit to capital is an internal reclassification and is not treated as a cash outflow. Earnings and bonus withdrawals and expenses are cash outflows.</p>
-        <p className="text-sm text-gray-600">Borrower repayments are shown as cash received, not profit. The current instalments table does not split principal from interest, and rollovers alter the current loan record. A reliable realised-profit figure requires a separate repayment-allocation and loan-event ledger.</p>
+        <p className="text-sm text-gray-600">New repayments are allocated principal-first, then interest, with the rollover cycle recorded separately. This allows the app to show loan interest actually collected. Older instalments without allocation data are not guessed and should be excluded from profit reporting after the fresh reset.</p>
+        <p className="text-sm text-gray-600">Cash-basis operating profit is collected loan interest less investor interest actually paid and recorded operating expenses. It is not an accrual-basis statutory profit figure and does not include uncollected loan interest.</p>
         <p className="text-sm text-gray-600">Net cash movement is an estimate from saved transactions, not a verified bank balance. Reconcile it against bank statements. Loan disbursement logs now record principal as cash paid out.</p>
       </section>
       <section className="bg-white rounded-2xl border p-5">
