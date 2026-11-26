@@ -1,10 +1,44 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 export default function MainLayout({ children }) {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [notifications, setNotifications] = useState([])
+  const [notificationsLoading, setNotificationsLoading] = useState(true)
+
+  useEffect(() => {
+    let mounted = true
+    async function loadNotifications() {
+      const today = new Date()
+      const todayKey = today.toISOString().slice(0, 10)
+      const inSevenDays = new Date(today)
+      inSevenDays.setDate(inSevenDays.getDate() + 7)
+      const inFourteenDays = new Date(today)
+      inFourteenDays.setDate(inFourteenDays.getDate() + 14)
+      const [overdueResult, dueSoonResult, applicationResult, maturityResult] = await Promise.all([
+        supabase.from('loans').select('id,due_date,applicants(full_name)').eq('status', 'overdue').order('due_date', { ascending: true }),
+        supabase.from('loans').select('id,due_date,applicants(full_name)').eq('status', 'active').gte('due_date', todayKey).lte('due_date', inSevenDays.toISOString().slice(0, 10)).order('due_date', { ascending: true }),
+        supabase.from('applications').select('id,status,created_at,applicants(full_name)').in('status', ['pending_loanee', 'pending_guarantor', 'pending_review']).order('created_at', { ascending: true }),
+        supabase.from('investments').select('id,maturity_date,investors(full_name)').eq('status', 'active').gte('maturity_date', todayKey).lte('maturity_date', inFourteenDays.toISOString().slice(0, 10)).order('maturity_date', { ascending: true }),
+      ])
+      if (!mounted) return
+      const items = []
+      ;(overdueResult.data || []).forEach(loan => items.push({ id: 'overdue-' + loan.id, title: 'Overdue loan', detail: loan.applicants?.full_name || 'Borrower record', date: loan.due_date, route: '/loans', priority: 'urgent' }))
+      ;(dueSoonResult.data || []).forEach(loan => items.push({ id: 'due-' + loan.id, title: 'Loan due soon', detail: (loan.applicants?.full_name || 'Borrower') + ' · due ' + new Date(loan.due_date).toLocaleDateString('en-NG'), date: loan.due_date, route: '/loans', priority: 'normal' }))
+      ;(applicationResult.data || []).forEach(app => items.push({ id: 'application-' + app.id, title: app.status === 'pending_review' ? 'Application needs review' : app.status === 'pending_guarantor' ? 'Awaiting guarantor' : 'Awaiting applicant', detail: app.applicants?.full_name || 'Application record', date: app.created_at, route: '/applications', priority: app.status === 'pending_review' ? 'important' : 'normal' }))
+      ;(maturityResult.data || []).forEach(deal => items.push({ id: 'maturity-' + deal.id, title: 'Investment nearing maturity', detail: (deal.investors?.full_name || 'Investor') + ' · ' + new Date(deal.maturity_date).toLocaleDateString('en-NG'), date: deal.maturity_date, route: '/investors', priority: 'important' }))
+      const rank = { urgent: 0, important: 1, normal: 2 }
+      items.sort((a, b) => rank[a.priority] - rank[b.priority] || new Date(a.date || 0) - new Date(b.date || 0))
+      setNotifications(items)
+      setNotificationsLoading(false)
+    }
+    loadNotifications()
+    return () => { mounted = false }
+  }, [])
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -87,9 +121,21 @@ export default function MainLayout({ children }) {
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="lg:hidden sticky top-0 z-10 h-14 px-4 flex items-center gap-3 bg-white border-b border-[var(--border)]">
-          <button type="button" onClick={() => setSidebarOpen(true)} className="w-9 h-9 border border-[var(--border)] rounded-md text-slate-700" aria-label="Open menu">☰</button>
-          <div className="font-bold tracking-[.12em] text-sm text-slate-800">REGNUM <span className="font-normal tracking-normal text-slate-500">Ventures</span></div>
+        <header className="sticky top-0 z-20 h-14 px-4 sm:px-6 flex items-center gap-3 bg-white border-b border-[var(--border)]">
+          <button type="button" onClick={() => setSidebarOpen(true)} className="w-9 h-9 border border-[var(--border)] rounded-md text-slate-700 lg:hidden" aria-label="Open menu">☰</button>
+          <div className="font-bold tracking-[.12em] text-sm text-slate-800 lg:hidden">REGNUM <span className="font-normal tracking-normal text-slate-500">Ventures</span></div>
+          <div className="hidden lg:block text-xs text-slate-500">Business workspace</div>
+          <div className="ml-auto relative">
+            <button type="button" onClick={() => setNotificationsOpen(v => !v)} aria-label={'Notifications, ' + notifications.length + ' items'} aria-expanded={notificationsOpen} className="relative w-10 h-10 flex items-center justify-center rounded-md border border-[var(--border)] text-slate-700 hover:bg-slate-50">
+              <span className="text-lg">♧</span>
+              {notifications.length > 0 && <span className="absolute -top-1 -right-1 min-w-[19px] h-[19px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center">{notifications.length > 99 ? '99+' : notifications.length}</span>}
+            </button>
+            {notificationsOpen && <div className="fixed sm:absolute top-[60px] sm:top-12 left-3 right-3 sm:left-auto sm:right-0 sm:w-[370px] max-h-[75dvh] overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl z-50">
+              <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between"><div><p className="font-bold text-slate-900 text-sm">Notifications & reminders</p><p className="text-xs text-slate-500 mt-0.5">Items that may need your attention</p></div><button type="button" onClick={() => setNotificationsOpen(false)} className="w-8 h-8 rounded-md border text-slate-500" aria-label="Close notifications">×</button></div>
+              {notificationsLoading ? <p className="p-5 text-sm text-slate-500">Checking your records…</p> : notifications.length === 0 ? <div className="p-6 text-center"><p className="text-sm font-semibold text-slate-700">You're all caught up</p><p className="text-xs text-slate-500 mt-1">No overdue loans, upcoming due dates or pending reminders.</p></div> : <div className="divide-y divide-slate-100">{notifications.map(item => <button key={item.id} type="button" onClick={() => { setNotificationsOpen(false); navigate(item.route) }} className="w-full text-left px-4 py-3 hover:bg-slate-50 flex gap-3 items-start"><span className={'mt-1 w-2 h-2 rounded-full shrink-0 ' + (item.priority === 'urgent' ? 'bg-red-500' : item.priority === 'important' ? 'bg-amber-500' : 'bg-slate-400')}></span><span className="min-w-0"><span className="block text-sm font-semibold text-slate-800">{item.title}</span><span className="block text-xs text-slate-500 mt-0.5">{item.detail}</span></span><span className="ml-auto text-xs text-slate-400 shrink-0">View</span></button>)}</div>}
+              <div className="px-4 py-2 border-t border-slate-200 text-[11px] text-slate-400">Updates when you open the workspace. Check the relevant section for full records.</div>
+            </div>}
+          </div>
         </header>
         <main className="flex-1 min-w-0 p-4 sm:p-6 xl:p-8">
           <div className="mx-auto w-full max-w-[1600px]">{children}</div>
