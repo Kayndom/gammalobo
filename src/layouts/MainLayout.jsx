@@ -17,6 +17,7 @@ export default function MainLayout({ children }) {
     { to: '/loans', label: 'Loans', icon: '💰' },
     { to: '/loanees', label: 'Loanees', icon: '👥' },
     { to: '/finance', label: 'Finance', icon: '📊' },
+    { to: '/investors', label: 'Investors', icon: '🤝' },
     { to: '/settings', label: 'Settings', icon: '⚙️' },
   ]
 
