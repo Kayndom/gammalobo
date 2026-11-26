@@ -8,6 +8,7 @@ import Loans from './pages/Loans'
 import Loanees from './pages/Loanees'
 import Settings from './pages/Settings'
 import Finance from './pages/Finance'
+import Investors from './pages/Investors'
 import LoaneeForm from './pages/LoaneeForm'
 import GuarantorForm from './pages/GuarantorForm'
 
@@ -43,6 +44,7 @@ function App() {
         <Route path="/loans" element={session ? <Loans /> : <Navigate to="/" />} />
         <Route path="/loanees" element={session ? <Loanees /> : <Navigate to="/" />} />
         <Route path="/finance" element={session ? <Finance /> : <Navigate to="/" />} />
+        <Route path="/investors" element={session ? <Investors /> : <Navigate to="/" />} />
         <Route path="/settings" element={session ? <Settings /> : <Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
