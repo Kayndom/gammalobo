@@ -176,7 +176,9 @@ export default function Loans() {
       return
     }
 
+    const currentRolloverNumber = Number(selectedLoan.rollover_count || 0)
     const principalAlreadyPaid = (selectedLoan.instalments || [])
+      .filter(item => Number(item.rollover_number || 0) === currentRolloverNumber)
       .reduce((sum, item) => sum + Number(item.allocated_principal || 0), 0)
     const principalRemaining = Math.max(0, Number(selectedLoan.principal || 0) - principalAlreadyPaid)
     const allocatedPrincipal = Math.min(amount, principalRemaining)
@@ -187,6 +189,7 @@ export default function Loans() {
       amount_paid: amount,
       allocated_principal: allocatedPrincipal,
       allocated_interest: allocatedInterest,
+      rollover_number: currentRolloverNumber,
       payment_date: instalment.date,
       note: instalment.note,
     })
@@ -241,6 +244,14 @@ export default function Loans() {
       amount_paid: newAmountPaid,
       outstanding_balance: newOutstanding <= 0 ? 0 : newOutstanding,
       status: newStatus,
+      instalments: [...(prev.instalments || []), {
+        amount_paid: amount,
+        allocated_principal: allocatedPrincipal,
+        allocated_interest: allocatedInterest,
+        rollover_number: currentRolloverNumber,
+        payment_date: instalment.date,
+        note: instalment.note,
+      }],
     }))
     fetchLoans()
   }
