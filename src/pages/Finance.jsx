@@ -23,6 +23,7 @@ export default function Finance() {
   const [showWithdrawalForm, setShowWithdrawalForm] = useState(false)
   const [capitalForm, setCapitalForm] = useState({ amount: '', note: '' })
   const [withdrawalForm, setWithdrawalForm] = useState({ amount: '', withdrawal_type: 'earnings', note: '' })
+  const [reportMonth, setReportMonth] = useState(() => new Date().toISOString().slice(0, 7))
 
   async function load() {
     setLoading(true)
@@ -107,6 +108,37 @@ export default function Finance() {
 
   if (loading) return <MainLayout><p className="text-gray-500">Loading financial records…</p></MainLayout>
 
+  const monthStart = `${reportMonth}-01`
+  const [yearPart, monthPart] = reportMonth.split('-').map(Number)
+  const monthEnd = new Date(yearPart, monthPart, 1).toISOString().slice(0, 10)
+  const inMonth = value => {
+    if (!value) return false
+    const date = String(value).slice(0, 10)
+    return date >= monthStart && date < monthEnd
+  }
+  const sumForReport = (rows, field = 'amount') => rows.reduce((total, row) => total + Number(row[field] || 0), 0)
+  const monthlyCapital = sumForReport(injections.filter(row => inMonth(row.injected_at)))
+  const monthlyInvestorFunding = sumForReport(investments.filter(row => row.funded_at && row.status !== 'cancelled' && inMonth(row.funded_at)), 'principal')
+  const monthlyDisbursed = sumForReport(disbursements.filter(row => inMonth(row.created_at)))
+  const monthlyRepayments = sumForReport(instalments.filter(row => inMonth(row.payment_date)), 'amount_paid')
+  const monthlyLoanInterest = sumForReport(instalments.filter(row => inMonth(row.payment_date)), 'allocated_interest')
+  const monthlyInvestorInterestPaid = sumForReport(investorPayments.filter(row => row.payment_type === 'interest' && inMonth(row.payment_date)))
+  const monthlyExpenses = sumForReport(withdrawals.filter(row => row.withdrawal_type === 'expense' && inMonth(row.withdrawn_at)))
+  const monthlyOwnerWithdrawals = sumForReport(withdrawals.filter(row => ['earnings', 'bonus'].includes(row.withdrawal_type) && inMonth(row.withdrawn_at)))
+  const monthlyOperatingProfit = monthlyLoanInterest - monthlyInvestorInterestPaid - monthlyExpenses
+  const monthLabel = new Date(yearPart, monthPart - 1, 1).toLocaleDateString('en-NG', { month: 'long', year: 'numeric' })
+  const monthlyRows = [
+    ['Owner capital injected', monthlyCapital, 'Owner funding; not revenue'],
+    ['Investor capital received', monthlyInvestorFunding, 'External funding; repayable liability'],
+    ['Loans disbursed', monthlyDisbursed, 'Principal paid out to borrowers'],
+    ['Borrower repayments received', monthlyRepayments, 'Total cash received, including principal'],
+    ['Loan interest collected', monthlyLoanInterest, 'Interest portion of recorded repayments'],
+    ['Investor interest paid', monthlyInvestorInterestPaid, 'Investor return actually paid'],
+    ['Business expenses', monthlyExpenses, 'Recorded operating expenses'],
+    ['Owner withdrawals', monthlyOwnerWithdrawals, 'Earnings and bonus withdrawals'],
+    ['Net cash-basis operating profit', monthlyOperatingProfit, 'Loan interest collected less investor interest paid and operating expenses']
+  ]
+
   const cards = [
     ['Recorded net cash movement', money(stats.cashMovementEstimate), 'Estimated from recorded cash transactions; reconcile with bank balance'],
     ['Owner capital injected', money(stats.ownerCapital), 'Owner funding, not revenue'],
@@ -150,6 +182,20 @@ export default function Finance() {
         <input placeholder="Reason / note" className="border rounded-lg p-2" value={withdrawalForm.note} onChange={e => setWithdrawalForm({ ...withdrawalForm, note: e.target.value })} />
         <button disabled={saving} className="rounded-lg bg-blue-700 text-white p-2">{saving ? 'Saving…' : 'Record transaction'}</button>
       </form>}
+      <section id="monthly-financial-report" className="bg-white rounded-2xl border p-5 space-y-4">
+        <div className="flex flex-wrap justify-between items-end gap-3">
+          <div><h2 className="font-bold text-gray-800">Monthly financial performance report</h2><p className="text-sm text-gray-500">A date-based summary of recorded business activity. Select any month to review or print.</p></div>
+          <div className="flex flex-wrap gap-2 items-center print:hidden">
+            <input aria-label="Report month" type="month" value={reportMonth} onChange={e => setReportMonth(e.target.value)} className="border rounded-lg p-2 text-sm" />
+            <button onClick={() => window.print()} className="px-3 py-2 rounded-lg bg-slate-800 text-white text-sm">Print / Save PDF</button>
+          </div>
+        </div>
+        <h3 className="font-semibold text-slate-700">{monthLabel}</h3>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {monthlyRows.map(([label, amount, description]) => <div key={label} className="rounded-xl border p-3"><p className="text-xs text-gray-500">{label}</p><p className="text-lg font-bold text-slate-800 mt-1">{money(amount)}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
+        </div>
+        <p className="text-xs text-gray-500">This report uses transaction dates and recorded allocations. Capital received, investor funding, loan disbursements and borrower principal repayments are cash movements, not operating profit. It is a management summary, not an audited or statutory financial statement.</p>
+      </section>
       <section className="space-y-3">
         <div><h2 className="font-bold text-gray-800">Business overview</h2><p className="text-xs text-gray-500">Your recorded cash position and the main sources and uses of funds.</p></div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
