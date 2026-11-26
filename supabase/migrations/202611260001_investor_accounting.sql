@@ -128,3 +128,55 @@ end;
 $$;
 
 grant execute on function public.accrue_investor_interest() to authenticated;
+
+
+-- Prevent payments beyond the principal received or interest accrued.
+create or replace function public.validate_investor_payment()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  v_investment public.investments%rowtype;
+  v_limit numeric(14,2);
+  v_paid numeric(14,2);
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select * into v_investment
+  from public.investments
+  where id = new.investment_id
+  for update;
+
+  if not found or v_investment.funded_at is null then
+    raise exception 'Investment funds have not been confirmed';
+  end if;
+
+  if new.payment_type = 'principal' then
+    v_limit := v_investment.principal;
+  else
+    select coalesce(sum(amount),0) into v_limit
+    from public.investor_accruals
+    where investment_id = new.investment_id;
+  end if;
+
+  select coalesce(sum(amount),0) into v_paid
+  from public.investor_payments
+  where investment_id = new.investment_id
+    and payment_type = new.payment_type;
+
+  if v_paid + new.amount > v_limit then
+    raise exception 'Payment exceeds the outstanding % amount', new.payment_type;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists investor_payment_limit on public.investor_payments;
+create trigger investor_payment_limit
+before insert on public.investor_payments
+for each row execute function public.validate_investor_payment();
