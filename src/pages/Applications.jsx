@@ -21,11 +21,11 @@ function ActiveLoanWarning({ applicantId }) {
 function ApplicationDetail({ app, onClose }) {
   if (!app) return null
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-y-auto" style={{ maxHeight: '90vh' }}>
-        <div className="p-5 border-b flex justify-between items-center sticky top-0 bg-white rounded-t-2xl">
-          <h2 className="font-bold text-gray-800">Application Details</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
+    <div className="fixed inset-0 z-[60] bg-slate-950/55 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-0 sm:p-5" onClick={onClose}>
+      <section role="dialog" aria-modal="true" aria-label="Application details" onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-2xl rounded-t-2xl sm:rounded-xl shadow-2xl overflow-y-auto" style={{ maxHeight: '94dvh' }}>
+        <div className="p-5 sm:p-6 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white z-10">
+          <div><p className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Application record</p><h2 className="font-bold text-lg text-slate-900 mt-1">Application Details</h2></div>
+          <button type="button" onClick={onClose} aria-label="Close application details" className="w-9 h-9 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50">×</button>
         </div>
         <div className="p-5 space-y-5">
           <div>
@@ -107,7 +107,7 @@ function ApplicationDetail({ app, onClose }) {
             </div>
           )}
         </div>
-      </div>
+      </section>
     </div>
   )
 }
@@ -243,17 +243,17 @@ export default function Applications() {
 
   return (
     <MainLayout>
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
 
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-wrap justify-between items-end gap-3 mb-7">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Applications</h1>
-            <p className="text-gray-500 text-sm">Generate links and manage loan applications</p>
+            <p className="text-xs uppercase tracking-[.14em] font-semibold text-slate-500 mb-1">WORKSPACE</p><h1 className="text-2xl font-bold text-slate-800">Applications</h1>
+            <p className="text-slate-500 text-sm">Generate links and manage loan applications</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">Generate New Application Link</h2>
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-5 sm:p-6 mb-5">
+          <div className="mb-4"><h2 className="text-sm font-bold text-slate-800">Create an application link</h2><p className="text-xs text-slate-500 mt-1">Set the requested amount and any agreement-specific terms. Leave custom terms blank to use your defaults.</p></div>
           <div className="space-y-3">
             <input
               type="text"
@@ -293,7 +293,7 @@ export default function Applications() {
               onClick={generateApplicationLink}
               disabled={generating || !loanAmount}
               className="w-full text-white px-6 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5282)' }}
+              style={{ background: '#24384b' }}
             >
               {generating ? 'Generating...' : 'Generate Link'}
             </button>
@@ -312,8 +312,8 @@ export default function Applications() {
           )}
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div className="p-6 border-b">
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-5 sm:p-6 border-b border-slate-200">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">All Applications</h2>
             <input
               type="text"
@@ -349,7 +349,7 @@ export default function Applications() {
                 app.applicants?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
                 app.applicants?.phone?.includes(search)
               )).map((app) => (
-                <div key={app.id} className="p-6">
+                <div key={app.id} className="p-5 sm:p-6 hover:bg-slate-50/70 transition-colors">
                   <div className="flex justify-between items-start">
                     <div className="space-y-1">
                       <div className="flex items-center gap-3 flex-wrap">
