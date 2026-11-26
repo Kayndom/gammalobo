@@ -95,3 +95,121 @@ tbody tr:hover { background-color: #fafbfc; }
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
   select, textarea { min-height: 42px; }
 }
+
+
+/* REGNUM premium opening identity */
+.regnum-intro {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  color: #f4f6f8;
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(112, 133, 151, .16), transparent 38%),
+    linear-gradient(145deg, #0e151c 0%, #17232d 52%, #101820 100%);
+}
+.regnum-intro::before,
+.regnum-intro::after {
+  position: absolute;
+  content: "";
+  pointer-events: none;
+  border: 1px solid rgba(220, 229, 236, .07);
+  border-radius: 50%;
+  width: min(78vw, 720px);
+  aspect-ratio: 1;
+  left: 50%;
+  top: 48%;
+  transform: translate(-50%, -50%);
+}
+.regnum-intro::after {
+  width: min(58vw, 520px);
+  border-color: rgba(220, 229, 236, .045);
+}
+.regnum-intro-content { position: relative; z-index: 1; animation: regnum-intro-rise .8s cubic-bezier(.2,.7,.2,1) both; }
+.regnum-intro-mark {
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  border: 1px solid rgba(226, 234, 240, .62);
+  color: #f5f7f9;
+  font-family: 'Manrope', sans-serif;
+  font-size: 36px;
+  font-weight: 600;
+  letter-spacing: -.08em;
+  animation: regnum-mark-in .9s cubic-bezier(.2,.7,.2,1) both;
+}
+.regnum-intro-mark::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(226, 234, 240, .16);
+}
+.regnum-intro-mark span { transform: translateX(-2px); }
+.regnum-intro-eyebrow {
+  color: #c4d0d9;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .28em;
+}
+.regnum-intro-title {
+  color: #f4f6f8;
+  font-family: 'Manrope', sans-serif;
+  font-size: clamp(30px, 5vw, 48px);
+  font-weight: 600;
+  letter-spacing: -.055em;
+  line-height: 1.13;
+}
+.regnum-intro-caption { color: #9eacb8; font-size: 13px; letter-spacing: .025em; }
+.regnum-intro-progress {
+  width: 116px;
+  height: 2px;
+  margin-left: auto;
+  margin-right: auto;
+  overflow: hidden;
+  background: rgba(220, 229, 236, .14);
+}
+.regnum-intro-progress span {
+  display: block;
+  width: 40%;
+  height: 100%;
+  background: #c8d3dc;
+  animation: regnum-progress 2.2s ease-in-out both;
+}
+.regnum-intro-skip {
+  color: #aab7c1;
+  font-size: 11px;
+  letter-spacing: .04em;
+  text-decoration: underline;
+  text-decoration-color: rgba(170, 183, 193, .35);
+  text-underline-offset: 4px;
+}
+.regnum-intro-skip:hover { color: #fff; }
+.regnum-intro-footer {
+  position: absolute;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  color: #687986;
+  font-size: 9px;
+  letter-spacing: .2em;
+  text-align: center;
+}
+.regnum-intro-footer span { padding: 0 7px; color: #aab7c1; }
+@keyframes regnum-intro-rise {
+  from { opacity: 0; transform: translateY(13px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes regnum-mark-in {
+  from { opacity: 0; transform: scale(.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes regnum-progress {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(260%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .regnum-intro-content, .regnum-intro-mark, .regnum-intro-progress span {
+    animation: none !important;
+  }
+}
