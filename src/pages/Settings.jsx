@@ -14,6 +14,9 @@ const [changingPassword, setChangingPassword] = useState(false)
 const [importMessage, setImportMessage] = useState('')
 const [syncing, setSyncing] = useState(false)
 const [syncMessage, setSyncMessage] = useState('')
+const [restorePreview, setRestorePreview] = useState(null)
+const [restoreError, setRestoreError] = useState('')
+const [checkingRestore, setCheckingRestore] = useState(false)
 
   useEffect(() => {
     fetchSettings()
@@ -321,6 +324,36 @@ async function exportAll() {
     console.error('Complete backup failed:', err)
   }
 }
+async function inspectBackupFile(e) {
+  const file = e.target.files?.[0]
+  setRestorePreview(null)
+  setRestoreError('')
+  if (!file) return
+  setCheckingRestore(true)
+  try {
+    if (!file.name.toLowerCase().endsWith('.json')) throw new Error('Choose a REGNUM JSON backup file.')
+    const parsed = JSON.parse(await file.text())
+    const expectedTables = ['settings','applicants','guarantors','applications','loans','instalments','loan_logs','rollovers','capital_injections','profit_withdrawals','investors','investments','investor_accruals','investor_payments','audit_logs']
+    if (parsed.format !== 'REGNUM_COMPLETE_APP_DATA_BACKUP' || parsed.version !== 2) throw new Error('This is not a supported REGNUM complete backup (version 2).')
+    if (!parsed.tables || typeof parsed.tables !== 'object') throw new Error('The backup is missing its tables section.')
+    const missing = expectedTables.filter(table => !Array.isArray(parsed.tables[table]))
+    if (missing.length) throw new Error('Backup is incomplete. Missing or invalid tables: ' + missing.join(', '))
+    const counts = {}
+    for (const table of expectedTables) {
+      counts[table] = parsed.tables[table].length
+      if (parsed.record_counts?.[table] !== counts[table]) throw new Error('Record count mismatch for ' + table + '. The file may be incomplete or altered.')
+    }
+    const total = Object.values(counts).reduce((sum, count) => sum + count, 0)
+    if (parsed.total_records !== total) throw new Error('The total record count does not match the contents of the backup.')
+    setRestorePreview({ fileName: file.name, createdAt: parsed.created_at || 'Not recorded', total, counts, business: parsed.business || 'REGNUM Ventures', exclusions: parsed.coverage?.excludes || [] })
+  } catch (err) {
+    setRestoreError(err.message || 'Could not inspect this backup file.')
+  } finally {
+    setCheckingRestore(false)
+    e.target.value = ''
+  }
+}
+
 async function syncAllToSheets() {
   setSyncing(true)
   setSyncMessage('')
@@ -585,7 +618,27 @@ async function syncAllToSheets() {
     {syncing ? 'Syncing...' : '📊 Sync All Data to Google Sheets'}
   </button>
 </div>
-    <div className="border-t pt-3">
+    <div className="border-t pt-5">
+  <h3 className="text-sm font-semibold text-slate-800 mb-2">Restore backup — validation preview</h3>
+  <p className="text-xs text-slate-500 mb-3">Select a REGNUM JSON backup to check its format, required tables and record counts. This step is read-only: it does not change or restore any live records.</p>
+  <label className="w-full py-3 rounded-md text-sm font-medium text-center block cursor-pointer border border-slate-300 hover:border-slate-500 transition text-slate-700">
+    {checkingRestore ? 'Checking backup…' : 'Choose JSON backup to inspect'}
+    <input type="file" accept=".json,application/json" className="hidden" onChange={inspectBackupFile} disabled={checkingRestore} />
+  </label>
+  {restoreError && <p className="text-sm text-red-600 mt-3">Backup check failed: {restoreError}</p>}
+  {restorePreview && (
+    <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
+      <div><p className="text-sm font-semibold text-slate-800">Backup passed the structural checks</p><p className="text-xs text-slate-500">{restorePreview.fileName} · {restorePreview.business} · {restorePreview.createdAt}</p></div>
+      <p className="text-sm text-slate-700"><strong>{restorePreview.total.toLocaleString()}</strong> records across {Object.keys(restorePreview.counts).length} required data tables</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {Object.entries(restorePreview.counts).map(([table, count]) => <div key={table} className="flex justify-between gap-3 text-xs border-b border-slate-200 py-1"><span className="text-slate-600">{table}</span><strong className="text-slate-800">{count.toLocaleString()}</strong></div>)}
+      </div>
+      {restorePreview.exclusions.length > 0 && <div><p className="text-xs font-semibold text-slate-700 mb-1">Not contained in this file</p><ul className="list-disc pl-5 text-xs text-slate-500 space-y-1">{restorePreview.exclusions.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
+      <p className="text-xs text-amber-700 border-t border-slate-200 pt-3">No data has been restored. Actual restoration requires a separate protected process and should first be tested in an isolated database.</p>
+    </div>
+  )}
+</div>
+<div className="border-t pt-3">
       <p className="text-xs text-gray-500 mb-2">Legacy CSV import (limited)</p><p className="text-xs text-amber-700 mb-2">This is not a full restore tool. It can import borrower rows only; other CSV files are only checked, not restored. Do not use it to restore financial records.</p>
       <label className="w-full py-2 rounded-lg text-sm font-medium text-center block cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-400 transition text-gray-500">
         Click to Import CSV
