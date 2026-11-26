@@ -54,7 +54,7 @@ begin
   if v_actor is not null then
     select email into v_email from auth.users where id = v_actor;
   else
-    v_email := 'System / service role';
+    v_email := 'Public link / backend process';
   end if;
 
   if tg_op <> 'INSERT' then
