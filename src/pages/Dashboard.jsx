@@ -60,12 +60,12 @@ export default function Dashboard() {
   }
 
   const statCards = [
-    { label: 'Active Loans', value: stats.activeLoans, color: '#1e3a5f', text: 'white' },
-    { label: 'Total Outstanding', value: `₦${stats.totalOutstanding.toLocaleString()}`, color: '#c9a84c', text: 'white' },
-    { label: 'Overdue Loans', value: stats.overdueLoans, color: '#dc2626', text: 'white' },
-    { label: 'Total Disbursed', value: `₦${stats.totalDisbursed.toLocaleString()}`, color: '#1e3a5f', text: 'white' },
-    { label: 'Settled Loans', value: stats.settledLoans, color: '#16a34a', text: 'white' },
-    { label: 'Pending Applications', value: stats.pendingApplications, color: '#d97706', text: 'white' },
+    { label: 'Active Loans', value: stats.activeLoans, tone: 'blue', note: 'Currently running' },
+    { label: 'Total Outstanding', value: `₦${stats.totalOutstanding.toLocaleString()}`, tone: 'slate', note: 'Active loan balances' },
+    { label: 'Overdue Loans', value: stats.overdueLoans, tone: 'red', note: 'Requires attention' },
+    { label: 'Total Disbursed', value: `₦${stats.totalDisbursed.toLocaleString()}`, tone: 'plain', note: 'Actual cash disbursements' },
+    { label: 'Settled Loans', value: stats.settledLoans, tone: 'plain', note: 'Fully settled' },
+    { label: 'Pending Applications', value: stats.pendingApplications, tone: 'plain', note: 'Awaiting next action' },
   ]
 
   function getStatusStyle(status) {
@@ -80,11 +80,11 @@ export default function Dashboard() {
 
   return (
     <MainLayout>
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
 
-        <div className="mb-8">
-          <h1 className="text-2xl font-black text-gray-800">Dashboard</h1>
-          <p className="text-gray-400 text-sm mt-1">Welcome back — here's your overview</p>
+        <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
+          <div><p className="text-xs uppercase tracking-[.14em] font-semibold text-slate-500 mb-1">REGNUM VENTURES</p><h1 className="text-2xl font-bold text-slate-800">Business overview</h1><p className="text-slate-500 text-sm mt-1">A current view of your lending operations</p></div>
+          <p className="text-xs text-slate-500">{new Date().toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
         </div>
 
         {loading ? (
@@ -97,7 +97,7 @@ export default function Dashboard() {
         ) : (
           <>
             {overdueList.length > 0 && (
-              <div className="rounded-2xl p-5 mb-6 border border-red-200" style={{ background: '#fff5f5' }}>
+              <div className="rounded-lg p-5 mb-6 border border-red-200 bg-red-50">
                 <h2 className="text-sm font-bold text-red-700 mb-3 flex items-center gap-2">
                   <span>⚠️</span> Overdue Loans ({overdueList.length})
                 </h2>
@@ -121,19 +121,19 @@ export default function Dashboard() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 mb-7">
               {statCards.map((card, i) => (
-                <div key={i} className="rounded-2xl p-5 shadow-sm"
-                  style={{ background: card.color }}>
-                  <p className="text-xs font-medium opacity-80" style={{ color: card.text }}>{card.label}</p>
-                  <p className="text-2xl font-black mt-2" style={{ color: card.text }}>{card.value}</p>
+                <div key={i} className={`rounded-lg border p-5 shadow-sm ${card.tone === 'red' ? 'border-red-200 bg-red-50' : card.tone === 'blue' ? 'border-slate-300 bg-slate-800 text-white' : card.tone === 'slate' ? 'border-slate-200 bg-slate-100' : 'border-slate-200 bg-white'}`}>
+                  <p className={`text-xs font-semibold ${card.tone === 'blue' ? 'text-slate-300' : card.tone === 'red' ? 'text-red-700' : 'text-slate-500'}`}>{card.label}</p>
+                  <p className={`text-2xl font-bold mt-2 tabular-nums ${card.tone === 'red' ? 'text-red-700' : card.tone === 'blue' ? 'text-white' : 'text-slate-800'}`}>{card.value}</p>
+                  <p className={`text-xs mt-2 ${card.tone === 'blue' ? 'text-slate-300' : 'text-slate-500'}`}>{card.note}</p>
                 </div>
               ))}
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-5 border-b flex items-center gap-3">
-                <div className="w-1 h-5 rounded-full" style={{ background: '#c9a84c' }}></div>
+                <div className="w-1 h-5 rounded-full bg-slate-500"></div>
                 <h2 className="text-sm font-bold text-gray-700">Recent Loans</h2>
               </div>
               {recentLoans.length === 0 ? (
