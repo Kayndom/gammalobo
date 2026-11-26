@@ -110,7 +110,7 @@ export default function Finance() {
 
   const monthStart = `${reportMonth}-01`
   const [yearPart, monthPart] = reportMonth.split('-').map(Number)
-  const monthEnd = new Date(yearPart, monthPart, 1).toISOString().slice(0, 10)
+  const monthEnd = new Date(Date.UTC(yearPart, monthPart, 1)).toISOString().slice(0, 10)
   const inMonth = value => {
     if (!value) return false
     const date = String(value).slice(0, 10)
@@ -157,6 +157,7 @@ export default function Finance() {
 
   return <MainLayout>
     <div className="max-w-6xl mx-auto space-y-6">
+      <style>{`@media print { body * { visibility: hidden !important; } #monthly-financial-report, #monthly-financial-report * { visibility: visible !important; } #monthly-financial-report { position: absolute; left: 0; top: 0; width: 100%; border: 0; } }`}</style>
       <div className="flex flex-wrap justify-between items-end gap-3">
         <div><h1 className="text-2xl font-black text-gray-800">Finance</h1><p className="text-sm text-gray-500 mt-1">Capital, cash movements, lending assets and investor liabilities</p></div>
         <div className="flex gap-2">
