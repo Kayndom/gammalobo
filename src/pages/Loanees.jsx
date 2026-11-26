@@ -107,7 +107,8 @@ export default function Loanees() {
           </div>
 
           {selected && (
-            <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
+            <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-0 sm:p-5" onClick={() => { setSelected(null); setLoans([]) }}>
+              <section role="dialog" aria-modal="true" aria-label="Borrower details" onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-3xl rounded-t-2xl sm:rounded-xl shadow-2xl overflow-y-auto p-5 sm:p-7 space-y-6" style={{ maxHeight: '94dvh' }}>
 
               <div>
                 <h2 className="font-bold text-gray-800 text-lg">{selected.full_name}</h2>
@@ -217,6 +218,7 @@ export default function Loanees() {
                 )}
               </div>
 
+              </section>
             </div>
           )}
 
