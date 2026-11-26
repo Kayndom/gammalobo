@@ -15,4 +15,4 @@ alter table public.investments
     (status <> 'closed' or (closed_at is not null and nullif(trim(closure_reason), '') is not null))
     and
     (status <> 'cancelled' or (cancelled_at is not null and nullif(trim(cancellation_reason), '') is not null))
-  );
+  ) not valid;
