@@ -1,5 +1,5 @@
 -- Investor accounting for gammalobo.
--- Apply only after the security migration and after a verified database backup.
+-- Apply after a verified database backup. Existing borrower/guarantor security policies are unchanged.
 -- Investor funds are liabilities, not owner capital or business revenue.
 
 create extension if not exists pgcrypto;
