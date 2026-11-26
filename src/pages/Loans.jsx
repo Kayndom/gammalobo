@@ -937,7 +937,7 @@ export default function Loans() {
                     <div className="rounded-xl border border-orange-200 p-4 space-y-3" style={{ background: '#fffbf5' }}>
                       <h3 className="text-sm font-bold text-gray-800">Set rollover terms</h3>
                       <label className="block text-xs font-semibold text-gray-600">Rollover start date
-                        <input type="date" value={rolloverForm.startDate} onChange={e => setRolloverForm({ ...rolloverForm, startDate: e.target.value })} className="mt-1 w-full border rounded-lg p-2 text-sm" />
+                        <input type="date" value={rolloverForm.startDate} onChange={e => setRolloverForm({ ...rolloverForm, startDate: e.target.value })} className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500" />
                       </label>
                       <label className="block text-xs font-semibold text-gray-600">New interest rate (%)
                         <input type="number" min="0" step="0.01" value={rolloverForm.rate} onChange={e => setRolloverForm({ ...rolloverForm, rate: e.target.value })} className="mt-1 w-full border rounded-lg p-2 text-sm" />
