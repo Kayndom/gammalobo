@@ -111,12 +111,10 @@ export default function Loanees() {
           {selected && (
             <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-0 sm:p-5" onClick={() => { setSelected(null); setLoans([]) }}>
               <section role="dialog" aria-modal="true" aria-label="Borrower details" onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-3xl rounded-t-2xl sm:rounded-xl shadow-2xl overflow-y-auto p-5 sm:p-7 space-y-6" style={{ maxHeight: '94dvh' }}>
-                <div className="sticky top-0 z-10 flex justify-end -mt-2 -mr-2"><button type="button" onClick={() => { setSelected(null); setLoans([]) }} className="w-9 h-9 rounded-md border bg-white text-slate-600 hover:bg-slate-50" aria-label="Close borrower details">×</button></div>
-
-              <div>
-                <h2 className="font-bold text-gray-800 text-lg">{selected.full_name}</h2>
-                <p className="text-xs text-gray-500 mt-0.5">{selected.occupation}</p>
-              </div>
+                <div className="sticky top-0 z-10 -mx-5 -mt-5 sm:-mx-7 sm:-mt-7 px-5 sm:px-7 py-4 mb-1 bg-white/95 backdrop-blur border-b border-slate-200 flex items-center justify-between gap-3">
+                  <div className="min-w-0"><p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">Borrower profile</p><h2 className="font-bold text-slate-900 text-lg truncate">{selected.full_name}</h2><p className="text-xs text-slate-500 truncate">{selected.occupation}</p></div>
+                  <button type="button" onClick={() => { setSelected(null); setLoans([]) }} className="w-9 h-9 shrink-0 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50" aria-label="Close borrower details">×</button>
+                </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="bg-gray-50 rounded-lg p-3">
