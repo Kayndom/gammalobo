@@ -238,7 +238,7 @@ export default function Finance() {
         <div><h1 className="text-2xl font-black text-gray-800">Finance</h1><p className="text-sm text-gray-500 mt-1">Capital, cash movements, lending assets and investor liabilities</p></div>
         <div className="flex gap-2">
           <button onClick={() => { setShowCapitalForm(!showCapitalForm); setShowWithdrawalForm(false) }} className="px-3 py-2 rounded-xl bg-slate-800 text-white text-sm">+ Add capital</button>
-          <button onClick={() => { setShowWithdrawalForm(!showWithdrawalForm); setShowCapitalForm(false) }} className="px-3 py-2 rounded-xl bg-blue-700 text-white text-sm">Record withdrawal / expense</button>
+          <button onClick={() => { setShowWithdrawalForm(!showWithdrawalForm); setShowCapitalForm(false) }} className="px-3 py-2 rounded-xl bg-slate-800 text-white text-sm">Record withdrawal / expense</button>
           <button onClick={load} className="px-3 py-2 rounded-xl border text-sm">Refresh</button>
         </div>
       </div>
@@ -257,7 +257,7 @@ export default function Finance() {
         </select>
         <input required type="text" inputMode="decimal" placeholder="Amount (₦)" className="border rounded-lg p-2" value={withdrawalForm.amount} onChange={e => setWithdrawalForm({ ...withdrawalForm, amount: formatAmountInput(e.target.value) })} />
         <input placeholder="Reason / note" className="border rounded-lg p-2" value={withdrawalForm.note} onChange={e => setWithdrawalForm({ ...withdrawalForm, note: e.target.value })} />
-        <button disabled={saving} className="rounded-lg bg-blue-700 text-white p-2">{saving ? 'Saving…' : 'Record transaction'}</button>
+        <button disabled={saving} className="rounded-lg bg-slate-800 text-white p-2">{saving ? 'Saving…' : 'Record transaction'}</button>
       </form>}
       <section id="monthly-financial-report" className="bg-white rounded-lg border border-slate-200 p-5 space-y-4 shadow-sm">
         <div className="flex flex-wrap justify-between items-end gap-3">
