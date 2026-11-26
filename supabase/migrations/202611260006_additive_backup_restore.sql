@@ -22,6 +22,7 @@ declare
   v_counts jsonb := '{}'::jsonb;
   v_rows jsonb;
   v_max_id bigint;
+  v_backup_audit_max bigint;
   v_sequence text;
 begin
   if auth.uid() is null then
@@ -70,50 +71,56 @@ begin
     end if;
   end loop;
 
+  -- Restore historical audit rows first and advance the identity sequence.
+  -- New audit events produced by restore triggers will then use higher IDs.
+  select max(id) into v_backup_audit_max
+  from jsonb_populate_recordset(null::public.audit_logs, p_backup->'tables'->'audit_logs');
+
+  execute
+    'insert into public.audit_logs overriding system value
+     select (jsonb_populate_recordset(null::public.audit_logs, $1)).*
+     on conflict (id) do nothing'
+  using p_backup->'tables'->'audit_logs';
+  get diagnostics v_inserted = row_count;
+  v_counts := jsonb_build_object('audit_logs', v_inserted);
+
+  select greatest(coalesce((select max(id) from public.audit_logs), 0),
+                  coalesce(v_backup_audit_max, 0),
+                  (select last_value from public.audit_logs_id_seq))
+    into v_max_id;
+  v_sequence := pg_get_serial_sequence('public.audit_logs', 'id');
+  if v_sequence is not null and v_max_id > 0 then
+    perform setval(v_sequence, v_max_id, true);
+  end if;
+
   -- Parent records first, then dependent loan and investor records.
   foreach v_table in array v_tables loop
     if v_table = 'audit_logs' then
-      execute
-        'insert into public.audit_logs overriding system value
-         select (jsonb_populate_recordset(null::public.audit_logs, $1)).*
-         on conflict (id) do nothing'
-      using p_backup->'tables'->v_table;
+      continue;
     elsif v_table = 'investments' then
-      -- Closed agreements are temporarily inserted as active so their historical
-      -- accruals can pass the existing accrual guard. They are closed again below,
-      -- after payments have been restored and the settlement trigger can verify them.
-      select coalesce(jsonb_agg(
-        case when item->>'status' = 'closed'
-          then jsonb_set(item, '{status}', '"active"'::jsonb)
-          else item end
-      ), '[]'::jsonb)
-      into v_rows
-      from jsonb_array_elements(p_backup->'tables'->v_table) item;
-
-      execute
-        'insert into public.investments
-         select (jsonb_populate_recordset(null::public.investments, $1)).*
-         on conflict (id) do nothing'
-      using v_rows;
+      -- Temporarily insert closed agreements as active so their historical
+      -- accruals pass the existing accrual guard; close them after payments.
+      select coalesce(jsonb_agg(case when item->>'status' = 'closed'
+        then jsonb_set(item, '{status}', '"active"'::jsonb) else item end), '[]'::jsonb)
+        into v_rows
+        from jsonb_array_elements(p_backup->'tables'->v_table) as items(item);
+      execute 'insert into public.investments
+        select (jsonb_populate_recordset(null::public.investments, $1)).*
+        on conflict (id) do nothing' using v_rows;
     else
-      execute format(
-        'insert into public.%I select (jsonb_populate_recordset(null::public.%I, $1)).* on conflict (id) do nothing',
-        v_table, v_table
-      )
-      using p_backup->'tables'->v_table;
+      execute format('insert into public.%I select (jsonb_populate_recordset(null::public.%I, $1)).* on conflict (id) do nothing', v_table, v_table)
+        using p_backup->'tables'->v_table;
     end if;
-
     get diagnostics v_inserted = row_count;
     v_counts := v_counts || jsonb_build_object(v_table, v_inserted);
   end loop;
-
   -- Reapply closed status only after all linked repayments/accruals are present.
   update public.investments i
   set status = 'closed'
   where i.status <> 'closed'
     and i.id in (
       select (item->>'id')::uuid
-      from jsonb_array_elements(p_backup->'tables'->'investments') item
+      from jsonb_array_elements(p_backup->'tables'->'investments') as items(item)
       where item->>'status' = 'closed'
     );
 
