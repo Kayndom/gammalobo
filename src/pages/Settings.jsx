@@ -20,6 +20,8 @@ const [checkingRestore, setCheckingRestore] = useState(false)
 const [restoreBackupData, setRestoreBackupData] = useState(null)
 const [liveComparison, setLiveComparison] = useState(null)
 const [comparingLive, setComparingLive] = useState(false)
+const [restoringBackup, setRestoringBackup] = useState(false)
+const [restoreResult, setRestoreResult] = useState(null)
 
   useEffect(() => {
     fetchSettings()
@@ -411,6 +413,36 @@ async function compareBackupWithLive() {
   } finally { setComparingLive(false) }
 }
 
+
+async function restoreMissingBackupRecords() {
+  if (!restoreBackupData || !liveComparison) return
+  if (liveComparison.totalMissing < 1) {
+    setRestoreError('There are no missing records to restore.')
+    return
+  }
+  if (liveComparison.totalDifferent > 0 || liveComparison.brokenReferences.length > 0) {
+    setRestoreError('Restore blocked: resolve all conflicts and missing relationship targets first.')
+    return
+  }
+  const confirmed = window.confirm(
+    'FINAL RESTORE CONFIRMATION\\n\\nThis will insert only missing records into the LIVE REGNUM database. Existing records will not be overwritten or deleted. The operation is atomic and will roll back if any database rule fails.\\n\\nConfirm that you have downloaded a fresh backup and selected the correct file.'
+  )
+  if (!confirmed) return
+  setRestoringBackup(true)
+  setRestoreError('')
+  setRestoreResult(null)
+  try {
+    const { data, error } = await supabase.rpc('restore_regnum_backup', { p_backup: restoreBackupData })
+    if (error) throw error
+    setRestoreResult(data)
+    await compareBackupWithLive()
+  } catch (err) {
+    setRestoreError('Restore failed. The database transaction was rolled back; no partial restore was kept. ' + (err.message || 'Unknown error'))
+  } finally {
+    setRestoringBackup(false)
+  }
+}
+
 async function syncAllToSheets() {
   setSyncing(true)
   setSyncMessage('')
@@ -701,7 +733,15 @@ async function syncAllToSheets() {
         {liveComparison.brokenReferences.length>0 && <div className="rounded border border-red-200 bg-red-50 p-3"><p className="text-sm font-semibold text-red-800">Missing relationship targets</p><p className="text-xs text-red-700">{liveComparison.brokenReferences.length} missing parent references detected (up to 20 shown). These must be resolved before any import.</p></div>}
         {liveComparison.totalDifferent>0 && <div className="rounded border border-amber-200 bg-amber-50 p-3"><p className="text-sm font-semibold text-amber-800">Conflicting existing records ({liveComparison.totalDifferent})</p><p className="text-xs text-amber-700">The same IDs exist with different contents. No overwrite will be attempted. Example tables: {Array.from(new Set(liveComparison.conflicts.map(x=>x.table))).join(', ')}.</p></div>}
         {liveComparison.totalDifferent===0 && liveComparison.brokenReferences.length===0 && <p className="text-xs text-emerald-700">No ID conflicts or missing relationship targets were detected. No records have been restored.</p>}
-        <p className="text-xs text-slate-500">Read-only comparison: no inserts, updates or deletes were performed. Write-enabled restoration remains disabled.</p>
+        <p className="text-xs text-slate-500">Comparison is read-only. A restore, when needed, inserts only missing rows and refuses conflicts. Existing records are never overwritten or deleted.</p>
+        {liveComparison.totalMissing > 0 && liveComparison.totalDifferent === 0 && liveComparison.brokenReferences.length === 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+            <p className="text-sm font-semibold text-amber-900">Missing records are eligible for controlled recovery</p>
+            <p className="text-xs text-amber-800">Before restoring, download a fresh complete backup. The restore runs as one database transaction; any constraint or settlement failure rolls back the entire operation.</p>
+            <button type="button" onClick={restoreMissingBackupRecords} disabled={restoringBackup || comparingLive} className="w-full py-3 rounded-md text-sm font-semibold text-white disabled:opacity-50" style={{background:'#8a4b16'}}>{restoringBackup ? 'Restoring missing records…' : 'Restore missing records to live database'}</button>
+          </div>
+        )}
+        {restoreResult && <div className="rounded border border-emerald-200 bg-emerald-50 p-3"><p className="text-sm font-semibold text-emerald-800">Restore transaction completed</p><p className="text-xs text-emerald-700">Inserted {Number(restoreResult.total_inserted || 0).toLocaleString()} missing records. Existing records were not overwritten or deleted.</p></div>}
       </div>}
     </div>
   )}
