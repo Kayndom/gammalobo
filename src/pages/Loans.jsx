@@ -151,7 +151,7 @@ export default function Loans() {
         loan_id: newLoan.id,
         activity_type: 'disbursement',
         description: `Loan disbursed to ${app.applicants?.full_name}. Principal: ₦${Number(principal).toLocaleString()}, Interest (${rate}%): ₦${Number(interest).toLocaleString()}, Total Owed: ₦${Number(total).toLocaleString()}, Due Date: ${dueDate.toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}`,
-        amount: total,
+        amount: principal,
         balance_after: total,
       })
       await logLoanToSheets(newLoan, app.applicants, app.guarantors)
