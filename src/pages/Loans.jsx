@@ -164,7 +164,7 @@ export default function Loans() {
   }
 
   async function addInstalment() {
-    if (!instalment.amount || !instalment.date) return
+    if (!instalment.amount || !instalment.date || !selectedLoan) return
     setAdding(true)
     setMessage('')
     const amount = parseFloat(instalment.amount.replace(/,/g, ''))
@@ -173,65 +173,32 @@ export default function Loans() {
       setAdding(false)
       return
     }
-    if (amount > Number(selectedLoan.outstanding_balance || 0)) {
-      setMessage('Payment cannot exceed the outstanding loan balance')
+
+    const { data: result, error } = await supabase.rpc('record_loan_repayment', {
+      p_loan_id: selectedLoan.id,
+      p_amount: amount,
+      p_payment_date: instalment.date,
+      p_note: instalment.note || null,
+    })
+
+    if (error) {
+      setMessage(`Payment was not recorded: ${error.message}`)
       setAdding(false)
       return
     }
 
-    const currentRolloverNumber = Number(selectedLoan.rollover_count || 0)
-    const principalAlreadyPaid = (selectedLoan.instalments || [])
-      .filter(item => Number(item.rollover_number || 0) === currentRolloverNumber)
-      .reduce((sum, item) => sum + Number(item.allocated_principal || 0), 0)
-    const principalRemaining = Math.max(0, Number(selectedLoan.principal || 0) - principalAlreadyPaid)
-    const allocatedPrincipal = Math.min(amount, principalRemaining)
-    const allocatedInterest = amount - allocatedPrincipal
-
-    const { error: instalmentError } = await supabase.from('instalments').insert({
-      loan_id: selectedLoan.id,
+    const payment = {
+      id: result.instalment_id,
       amount_paid: amount,
-      allocated_principal: allocatedPrincipal,
-      allocated_interest: allocatedInterest,
-      rollover_number: currentRolloverNumber,
+      allocated_principal: Number(result.allocated_principal),
+      allocated_interest: Number(result.allocated_interest),
+      rollover_number: Number(result.rollover_number),
       payment_date: instalment.date,
       note: instalment.note,
-    })
-
-    if (instalmentError) {
-      setMessage('Error recording payment')
-      setAdding(false)
-      return
-    }
-
-    const newAmountPaid = (selectedLoan.amount_paid || 0) + amount
-    const newOutstanding = selectedLoan.total_owed - newAmountPaid
-    const newStatus = newOutstanding <= 0 ? 'settled' : selectedLoan.status === 'overdue' ? 'overdue' : 'active'
-    await supabase.from('loans').update({
-      amount_paid: newAmountPaid,
-      outstanding_balance: newOutstanding <= 0 ? 0 : newOutstanding,
-      status: newStatus,
-    }).eq('id', selectedLoan.id)
-
-    await supabase.from('loan_logs').insert({
-      loan_id: selectedLoan.id,
-      activity_type: 'payment',
-      description: `Payment received: ₦${Number(amount).toLocaleString()}${instalment.note ? ` — ${instalment.note}` : ''}`,
-      amount: amount,
-      balance_after: newOutstanding <= 0 ? 0 : newOutstanding,
-    })
-
-    if (newStatus === 'settled') {
-      await supabase.from('loan_logs').insert({
-        loan_id: selectedLoan.id,
-        activity_type: 'settled',
-        description: 'Loan fully settled. All payments received.',
-        amount: 0,
-        balance_after: 0,
-      })
     }
 
     await logPaymentToSheets({
-      id: Date.now().toString(),
+      id: result.instalment_id,
       loan_id: selectedLoan.id,
       amount_paid: amount,
       payment_date: instalment.date,
@@ -244,17 +211,10 @@ export default function Loans() {
     setAdding(false)
     setSelectedLoan(prev => ({
       ...prev,
-      amount_paid: newAmountPaid,
-      outstanding_balance: newOutstanding <= 0 ? 0 : newOutstanding,
-      status: newStatus,
-      instalments: [...(prev.instalments || []), {
-        amount_paid: amount,
-        allocated_principal: allocatedPrincipal,
-        allocated_interest: allocatedInterest,
-        rollover_number: currentRolloverNumber,
-        payment_date: instalment.date,
-        note: instalment.note,
-      }],
+      amount_paid: Number(result.amount_paid),
+      outstanding_balance: Number(result.outstanding_balance),
+      status: result.status,
+      instalments: [...(prev.instalments || []), payment],
     }))
     fetchLoans()
   }
@@ -270,50 +230,25 @@ export default function Loans() {
 
     setRollingOver(true)
     setMessage('')
-    const previousOutstanding = Number(loan.outstanding_balance)
-    const newPrincipal = previousOutstanding
-    const interest = (newPrincipal * rate) / 100
-    const total = newPrincipal + interest
-    const dueDate = new Date(startDate)
-    dueDate.setDate(dueDate.getDate() + duration)
-    const newRolloverCount = Number(loan.rollover_count || 0) + 1
-
-    const { error: loanError } = await supabase.from('loans').update({
-      principal: newPrincipal, interest_rate: rate, interest_amount: interest,
-      total_owed: total, amount_paid: 0, outstanding_balance: total,
-      loan_type: 'rollover', rollover_count: newRolloverCount,
-      last_rolled_over_at: startDate.toISOString(), due_date: dueDate.toISOString(),
-      status: 'active', disbursed_at: startDate.toISOString(),
-    }).eq('id', loan.id)
-
-    if (loanError) {
-      setMessage(`Rollover failed: ${loanError.message}`)
-      setRollingOver(false)
-      return
-    }
-
-    const { error: rolloverError } = await supabase.from('rollovers').insert({
-      loan_id: loan.id, rollover_number: newRolloverCount,
-      previous_outstanding: previousOutstanding, new_principal: newPrincipal,
-      new_interest_rate: rate, new_interest_amount: interest, new_total_owed: total,
-      rolled_over_at: startDate.toISOString(), new_due_date: dueDate.toISOString(),
+    const { error } = await supabase.rpc('rollover_loan', {
+      p_loan_id: loan.id,
+      p_start_date: form.startDate,
+      p_interest_rate: rate,
+      p_duration_days: duration,
     })
-    if (rolloverError) {
-      setMessage(`Loan updated, but rollover history could not be saved: ${rolloverError.message}. Please contact support before retrying.`)
+
+    if (error) {
+      setMessage(`Rollover failed: ${error.message}`)
       setRollingOver(false)
-      await fetchLoans()
       return
     }
 
-    await supabase.from('loan_logs').insert([
-      { loan_id: loan.id, activity_type: 'overdue', description: `Loan became overdue. Outstanding balance at rollover: ₦${previousOutstanding.toLocaleString()}`, amount: previousOutstanding, balance_after: previousOutstanding },
-      { loan_id: loan.id, activity_type: 'rollover', description: `Loan rolled over from ${startDate.toLocaleDateString('en-NG')}. New principal: ₦${newPrincipal.toLocaleString()}, Interest (${rate}%): ₦${interest.toLocaleString()}, Duration: ${duration} days, New total: ₦${total.toLocaleString()}, New due date: ${dueDate.toLocaleDateString('en-NG')}`, amount: total, balance_after: total },
-    ])
     setSelectedLoan(null)
     setRollovers([])
     setShowRolloverForm(false)
     setRollingOver(false)
-    fetchLoans()
+    setMessage('Loan rolled over successfully.')
+    await fetchLoans()
   }
 
   function getWhatsAppRolloverLink(loan, settings) {
