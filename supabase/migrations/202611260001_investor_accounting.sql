@@ -84,11 +84,13 @@ as $$
 declare
   v_count integer := 0;
   v_row record;
+  v_index integer;
   v_period_start date;
   v_period_end date;
-  v_month_end date;
+  v_next_anniversary date;
+  v_days_in_period integer;
+  v_days_elapsed integer;
   v_amount numeric(14,2);
-  v_inserted integer;
 begin
   if auth.uid() is null then
     raise exception 'Authentication required';
@@ -100,14 +102,17 @@ begin
       and funded_at is not null
       and start_date < current_date
   loop
-    v_period_start := v_row.start_date;
-    while v_period_start < least(current_date, v_row.maturity_date) loop
-      v_month_end := (v_period_start + interval '1 month')::date;
-      v_period_end := least(v_month_end, v_row.maturity_date, current_date);
+    for v_index in 0..greatest(0, v_row.term_months - 1) loop
+      v_period_start := (v_row.start_date + make_interval(months => v_index))::date;
+      v_next_anniversary := (v_row.start_date + make_interval(months => v_index + 1))::date;
+      exit when v_period_start >= least(current_date, v_row.maturity_date);
+
+      v_period_end := least(v_next_anniversary, v_row.maturity_date, current_date);
+      v_days_in_period := greatest(1, v_next_anniversary - v_period_start);
+      v_days_elapsed := greatest(0, v_period_end - v_period_start);
       v_amount := round(
         v_row.principal * (v_row.monthly_rate / 100)
-        * ((v_period_end - v_period_start)::numeric
-           / greatest(1, (v_month_end - v_period_start)::numeric)),
+        * (v_days_elapsed::numeric / v_days_in_period::numeric),
         2
       );
 
@@ -115,20 +120,20 @@ begin
         (investment_id, period_start, period_end, amount)
       values
         (v_row.id, v_period_start, v_period_end, v_amount)
-      on conflict (investment_id, period_start) do nothing;
+      on conflict (investment_id, period_start)
+      do update set
+        period_end = excluded.period_end,
+        amount = excluded.amount;
 
-      get diagnostics v_inserted = row_count;
-      v_count := v_count + v_inserted;
-      v_period_start := v_month_end;
+      v_count := v_count + 1;
     end loop;
   end loop;
 
-  return jsonb_build_object('created_count', v_count);
+  return jsonb_build_object('periods_updated', v_count);
 end;
 $$;
 
 grant execute on function public.accrue_investor_interest() to authenticated;
-
 
 -- Prevent payments beyond the principal received or interest accrued.
 create or replace function public.validate_investor_payment()
