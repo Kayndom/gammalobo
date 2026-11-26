@@ -813,7 +813,8 @@ export default function Loans() {
           </div>
 
           {selectedLoan && (
-            <div className="bg-white rounded-2xl shadow-sm p-6 space-y-5 overflow-auto" style={{ maxHeight: '90vh' }}>
+            <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-0 sm:p-5" onClick={() => setSelectedLoan(null)}>
+              <section role="dialog" aria-modal="true" aria-label="Loan details" onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-3xl rounded-t-2xl sm:rounded-xl shadow-2xl overflow-y-auto p-5 sm:p-7 space-y-5" style={{ maxHeight: '94dvh' }}>
 
               <div className="flex justify-between items-start">
                 <div>
@@ -1026,6 +1027,7 @@ export default function Loans() {
                 </div>
               )}
 
+              </section>
             </div>
           )}
         </div>
