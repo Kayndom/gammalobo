@@ -165,10 +165,28 @@ export default function Loans() {
     setAdding(true)
     setMessage('')
     const amount = parseFloat(instalment.amount.replace(/,/g, ''))
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setMessage('Enter a valid payment amount')
+      setAdding(false)
+      return
+    }
+    if (amount > Number(selectedLoan.outstanding_balance || 0)) {
+      setMessage('Payment cannot exceed the outstanding loan balance')
+      setAdding(false)
+      return
+    }
+
+    const principalAlreadyPaid = (selectedLoan.instalments || [])
+      .reduce((sum, item) => sum + Number(item.allocated_principal || 0), 0)
+    const principalRemaining = Math.max(0, Number(selectedLoan.principal || 0) - principalAlreadyPaid)
+    const allocatedPrincipal = Math.min(amount, principalRemaining)
+    const allocatedInterest = amount - allocatedPrincipal
 
     const { error: instalmentError } = await supabase.from('instalments').insert({
       loan_id: selectedLoan.id,
       amount_paid: amount,
+      allocated_principal: allocatedPrincipal,
+      allocated_interest: allocatedInterest,
       payment_date: instalment.date,
       note: instalment.note,
     })
