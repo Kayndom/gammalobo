@@ -623,7 +623,7 @@ async function syncAllToSheets() {
   <p className="text-xs text-slate-500 mb-3">Select a REGNUM JSON backup to check its format, required tables and record counts. This step is read-only: it does not change or restore any live records.</p>
   <label className="w-full py-3 rounded-md text-sm font-medium text-center block cursor-pointer border border-slate-300 hover:border-slate-500 transition text-slate-700">
     {checkingRestore ? 'Checking backup…' : 'Choose JSON backup to inspect'}
-    <input type="file" accept=".json,application/json" className="hidden" onChange={inspectBackupFile} disabled={checkingRestore} />
+    <input type="file" className="hidden" onChange={inspectBackupFile} disabled={checkingRestore} />
   </label>
   {restoreError && <p className="text-sm text-red-600 mt-3">Backup check failed: {restoreError}</p>}
   {restorePreview && (
