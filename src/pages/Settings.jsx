@@ -508,7 +508,7 @@ async function syncAllToSheets() {
           <p className="text-slate-500 text-sm">Manage business information, lending defaults, security and backups</p>
         </div>
 
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-5 sm:p-7 space-y-7">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 sm:p-7 space-y-7">
 
           <div>
             <h2 className="text-sm font-bold text-slate-800 mb-4">
