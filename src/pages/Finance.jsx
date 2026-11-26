@@ -27,7 +27,7 @@ export default function Finance() {
     setError('')
     const results = await Promise.all([
       supabase.from('loans').select('id,principal,outstanding_balance,status'),
-      supabase.from('capital_injections').select('amount,injected_at'),
+      supabase.from('capital_injections').select('amount,note,injected_at'),
       supabase.from('profit_withdrawals').select('amount,withdrawal_type,withdrawn_at,note'),
       supabase.from('investments').select('principal,status,funded_at'),
       supabase.from('investor_payments').select('amount,payment_type,payment_date'),
