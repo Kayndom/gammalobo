@@ -693,7 +693,7 @@ export default function Loans() {
                 placeholder="Search by name..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
               />
               <div className="flex gap-2 flex-wrap">
                 {['all', 'active', 'overdue', 'settled'].map(f => (
@@ -728,7 +728,7 @@ export default function Loans() {
                       fetchRollovers(loan.id)
                       setMessage('')
                     }}
-                    className={`p-4 cursor-pointer hover:bg-gray-50 transition ${selectedLoan?.id === loan.id ? 'bg-blue-50' : ''}`}
+                    className={`p-4 cursor-pointer hover:bg-gray-50 transition ${selectedLoan?.id === loan.id ? 'bg-slate-100' : ''}`}
                   >
                     <div className="flex justify-between items-start">
                       <div className="space-y-1">
