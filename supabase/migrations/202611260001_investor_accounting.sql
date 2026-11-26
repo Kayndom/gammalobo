@@ -96,6 +96,10 @@ begin
     raise exception 'Authentication required';
   end if;
 
+  update public.investments
+  set status = 'matured'
+  where status = 'active' and maturity_date <= current_date;
+
   for v_row in
     select * from public.investments
     where status in ('active','matured')
@@ -156,8 +160,8 @@ begin
   where id = new.investment_id
   for update;
 
-  if not found or v_investment.funded_at is null then
-    raise exception 'Investment funds have not been confirmed';
+  if not found or v_investment.funded_at is null or v_investment.status = 'cancelled' then
+    raise exception 'Investment is not eligible for payment';
   end if;
 
   if new.payment_type = 'principal' then
