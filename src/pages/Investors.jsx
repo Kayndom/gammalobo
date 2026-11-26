@@ -39,12 +39,16 @@ export default function Investors() {
  async function confirmFunding(id){
   if(!window.confirm('Confirm that the full investment amount has actually been received?')) return
   setBusy(true);setError('')
-  const {error}=await supabase.from('investments').update({status:'active',funded_at:new Date().toISOString()}).eq('id',id).eq('status','pending_funding')
-  if(error)setError(error.message);else setMessage('Funds received confirmed; interest accrual starts from the agreed start date.')
+  const fundedAt=new Date()
+  const effectiveStart=fundedAt.toISOString().slice(0,10)
+  const maturity=new Date(fundedAt)
+  maturity.setMonth(maturity.getMonth()+Number(investments.find(item=>item.id===id)?.term_months||0))
+  const {error}=await supabase.from('investments').update({status:'active',funded_at:fundedAt.toISOString(),start_date:effectiveStart,maturity_date:maturity.toISOString().slice(0,10)}).eq('id',id).eq('status','pending_funding')
+  if(error)setError(error.message);else setMessage('Funds received confirmed; the investment term and interest clock start today.')
   await load();setBusy(false)
  }
  async function accrue(){setBusy(true);setError('');const {data,error}=await supabase.rpc('accrue_investor_interest')
-  if(error)setError(error.message);else setMessage((data?.created_count??0)+' monthly interest accrual(s) generated.');await load();setBusy(false)
+  if(error)setError(error.message);else setMessage((data?.periods_updated??0)+' interest period(s) updated.');await load();setBusy(false)
  }
  async function pay(e){e.preventDefault();setBusy(true);setError('')
   const amount=Number(payment.amount)
