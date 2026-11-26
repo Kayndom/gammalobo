@@ -103,16 +103,16 @@ export default function Dashboard() {
                 </h2>
                 <div className="space-y-2">
                   {overdueList.map(loan => (
-                    <div key={loan.id} className="flex justify-between items-center bg-white border border-red-100 rounded-lg p-3 sm:p-4">
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800">{loan.applicants?.full_name}</p>
+                    <div key={loan.id} className="flex flex-wrap gap-2 justify-between items-center bg-white border border-red-100 rounded-lg p-3 sm:p-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-800 break-words">{loan.applicants?.full_name}</p>
                         <p className="text-xs text-gray-400">
                           Due: {new Date(loan.due_date).toLocaleDateString('en-NG', {
                             day: 'numeric', month: 'short', year: 'numeric'
                           })}
                         </p>
                       </div>
-                      <p className="text-sm font-bold text-red-600">
+                      <p className="text-sm font-bold text-red-600 tabular-nums shrink-0">
                         ₦{Number(loan.outstanding_balance).toLocaleString()}
                       </p>
                     </div>
