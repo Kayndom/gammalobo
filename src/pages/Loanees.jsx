@@ -83,10 +83,13 @@ export default function Loanees() {
                   l.full_name.toLowerCase().includes(search.toLowerCase()) ||
                   l.phone.includes(search)
                 ).map(loanee => (
-                  <div
+                  <button
+                    type="button"
                     key={loanee.id}
                     onClick={() => handleSelect(loanee)}
-                    className={`p-4 cursor-pointer hover:bg-gray-50 transition ${selected?.id === loanee.id ? 'bg-slate-100' : ''}`}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(loanee) } }}
+                    aria-pressed={selected?.id === loanee.id}
+                    className={`w-full text-left p-4 cursor-pointer hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-500 transition ${selected?.id === loanee.id ? 'bg-slate-100' : ''}`}
                   >
                     <div className="flex justify-between items-start">
                       <div>
@@ -100,7 +103,7 @@ export default function Loanees() {
                         })}
                       </p>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
