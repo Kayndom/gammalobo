@@ -265,7 +265,7 @@ export default function Applications() {
                   setLoanAmount(raw === '' ? '' : Number(raw).toLocaleString())
                 }
               }}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
             />
             <div className="flex gap-3">
               <div className="flex-1">
@@ -275,7 +275,7 @@ export default function Applications() {
                   placeholder={`Default: ${appSettings?.standard_interest_rate || 18}%`}
                   value={customRate}
                   onChange={(e) => setCustomRate(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
                 />
               </div>
               <div className="flex-1">
@@ -285,7 +285,7 @@ export default function Applications() {
                   placeholder={`Default: ${appSettings?.loan_duration_days || 30} days`}
                   value={customDuration}
                   onChange={(e) => setCustomDuration(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
                 />
               </div>
             </div>
@@ -320,7 +320,7 @@ export default function Applications() {
               placeholder="Search by name or phone..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
             />
             <div className="flex gap-2 mt-4 overflow-x-auto pb-1">
               {[
@@ -407,7 +407,7 @@ export default function Applications() {
                 `${window.location.origin}/consent/${app.guarantor_consent_token}`
               )
             }
-            className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-100 transition"
+            className="text-xs bg-slate-100 text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-100 transition"
           >
             {copiedLink ===
             `${window.location.origin}/consent/${app.guarantor_consent_token}`
@@ -461,7 +461,7 @@ export default function Applications() {
                 `${window.location.origin}/guarantor/${app.guarantor_token}`
               )
             }
-            className="text-xs bg-blue-50 text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-100 transition"
+            className="text-xs bg-slate-100 text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-100 transition"
           >
             {copiedLink ===
             `${window.location.origin}/guarantor/${app.guarantor_token}`
