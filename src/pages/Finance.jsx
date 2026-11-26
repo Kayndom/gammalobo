@@ -16,6 +16,7 @@ export default function Finance() {
   const [withdrawals, setWithdrawals] = useState([])
   const [investments, setInvestments] = useState([])
   const [investorPayments, setInvestorPayments] = useState([])
+  const [investorAccruals, setInvestorAccruals] = useState([])
   const [instalments, setInstalments] = useState([])
   const [disbursements, setDisbursements] = useState([])
   const [showCapitalForm, setShowCapitalForm] = useState(false)
@@ -32,6 +33,7 @@ export default function Finance() {
       supabase.from('profit_withdrawals').select('amount,withdrawal_type,withdrawn_at,note'),
       supabase.from('investments').select('principal,status,funded_at'),
       supabase.from('investor_payments').select('amount,payment_type,payment_date'),
+      supabase.from('investor_accruals').select('amount'),
       supabase.from('instalments').select('amount_paid,allocated_principal,allocated_interest,payment_date'),
       supabase.from('loan_logs').select('amount,created_at').eq('activity_type', 'disbursement')
     ])
@@ -42,8 +44,9 @@ export default function Finance() {
     setWithdrawals(results[2].data || [])
     setInvestments(results[3].data || [])
     setInvestorPayments(results[4].data || [])
-    setInstalments(results[5].data || [])
-    setDisbursements(results[6].data || [])
+    setInvestorAccruals(results[5].data || [])
+    setInstalments(results[6].data || [])
+    setDisbursements(results[7].data || [])
     setLoading(false)
   }
 
@@ -83,6 +86,8 @@ export default function Finance() {
     const profitMovedToCapital = sum(withdrawals.filter(item => item.withdrawal_type === 'profit_to_capital'))
     const investorPrincipalReturned = sum(investorPayments.filter(item => item.payment_type === 'principal'))
     const investorInterestPaid = sum(investorPayments.filter(item => item.payment_type === 'interest'))
+    const investorInterestAccrued = sum(investorAccruals)
+    const investorInterestOutstanding = Math.max(0, investorInterestAccrued - investorInterestPaid)
     const realisedLoanInterest = sum(instalments, 'allocated_interest')
     const cashBasisNetInterest = realisedLoanInterest - investorInterestPaid
     const cashBasisOperatingProfit = cashBasisNetInterest - operatingExpenses
@@ -93,11 +98,12 @@ export default function Finance() {
       ownerCapital, investorFundingReceived, borrowerCashReceived, loanCashDisbursed,
       operatingExpenses, ownerWithdrawals, profitMovedToCapital,
       investorPrincipalReturned, investorInterestPaid, investorPrincipalOutstanding,
+      investorInterestAccrued, investorInterestOutstanding,
       realisedLoanInterest, cashBasisNetInterest, cashBasisOperatingProfit,
       cashMovementEstimate, borrowerReceivables: sum(activeLoans, 'outstanding_balance'),
       activeLoanCount: activeLoans.length, cashOutflows
     }
-  }, [loans, injections, withdrawals, investments, investorPayments, instalments, disbursements])
+  }, [loans, injections, withdrawals, investments, investorPayments, investorAccruals, instalments, disbursements])
 
   if (loading) return <MainLayout><p className="text-gray-500">Loading financial records…</p></MainLayout>
 
@@ -111,6 +117,7 @@ export default function Finance() {
     ['Cash-basis profit after investor interest and expenses', money(stats.cashBasisOperatingProfit), 'Collected loan interest less investor interest paid and operating expenses'],
     ['Outstanding borrower receivables', money(stats.borrowerReceivables), stats.activeLoanCount + ' active or overdue loans'],
     ['Investor principal outstanding', money(stats.investorPrincipalOutstanding), 'Investor funding less principal repaid'],
+    ['Investor interest accrued but unpaid', money(stats.investorInterestOutstanding), 'Accrued investor returns less interest already paid'],
     ['Investor interest paid', money(stats.investorInterestPaid), 'Recorded interest payouts'],
     ['Operating expenses', money(stats.operatingExpenses), 'Expenses recorded'],
     ['Owner withdrawals', money(stats.ownerWithdrawals), 'Earnings and bonus withdrawals']
@@ -143,12 +150,27 @@ export default function Finance() {
         <input placeholder="Reason / note" className="border rounded-lg p-2" value={withdrawalForm.note} onChange={e => setWithdrawalForm({ ...withdrawalForm, note: e.target.value })} />
         <button disabled={saving} className="rounded-lg bg-blue-700 text-white p-2">{saving ? 'Saving…' : 'Record transaction'}</button>
       </form>}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {cards.map(([label, value, description]) => <div key={label} className="bg-white rounded-2xl border p-4"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
-      </div>
+      <section className="space-y-3">
+        <div><h2 className="font-bold text-gray-800">Business overview</h2><p className="text-xs text-gray-500">Your recorded cash position and the main sources and uses of funds.</p></div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {cards.slice(0, 5).map(([label, value, description]) => <div key={label} className="bg-white rounded-2xl border p-4"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
+        </div>
+      </section>
+      <section className="space-y-3">
+        <div><h2 className="font-bold text-gray-800">Lending performance</h2><p className="text-xs text-gray-500">Cash actually collected from borrowers and money still owed on active loans.</p></div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {cards.slice(5, 8).map(([label, value, description]) => <div key={label} className="bg-white rounded-2xl border p-4"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
+        </div>
+      </section>
+      <section className="space-y-3">
+        <div><h2 className="font-bold text-gray-800">Investor obligations and business costs</h2><p className="text-xs text-gray-500">Amounts owed to investors, interest paid, expenses and owner withdrawals.</p></div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {cards.slice(8).map(([label, value, description]) => <div key={label} className="bg-white rounded-2xl border p-4"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
+        </div>
+      </section>
       <section className="bg-white rounded-2xl border p-5 space-y-2">
         <h2 className="font-bold text-gray-800">Accounting interpretation</h2>
-        <p className="text-sm text-gray-600">Investor principal is a repayable liability, not revenue. Owner capital is funding, not profit. Principal returned to investors reduces cash and the liability; investor interest and operating expenses are costs.</p>
+        <p className="text-sm text-gray-600">Investor principal is a repayable liability, not revenue. Owner capital is funding, not profit. Principal returned to investors reduces cash and the liability; investor interest and operating expenses are costs. Accrued but unpaid investor interest is shown separately from interest already paid.</p>
         <p className="text-sm text-gray-600">Moving profit to capital is an internal reclassification and is not treated as a cash outflow. Earnings and bonus withdrawals and expenses are cash outflows.</p>
         <p className="text-sm text-gray-600">New repayments are allocated principal-first, then interest, with the rollover cycle recorded separately. This allows the app to show loan interest actually collected. Older instalments without allocation data are not guessed and should be excluded from profit reporting after the fresh reset.</p>
         <p className="text-sm text-gray-600">Cash-basis operating profit is collected loan interest less investor interest actually paid and recorded operating expenses. It is not an accrual-basis statutory profit figure and does not include uncollected loan interest.</p>
@@ -159,6 +181,7 @@ export default function Finance() {
         <div className="grid sm:grid-cols-3 gap-3 text-sm">
           <div><p className="text-gray-500">Capital received</p><strong>{money(stats.investorFundingReceived)}</strong></div>
           <div><p className="text-gray-500">Principal returned</p><strong>{money(stats.investorPrincipalReturned)}</strong></div>
+          <div><p className="text-gray-500">Interest accrued but unpaid</p><strong>{money(stats.investorInterestOutstanding)}</strong></div>
           <div><p className="text-gray-500">Interest paid</p><strong>{money(stats.investorInterestPaid)}</strong></div>
         </div>
         <a href="/investors" className="inline-block mt-4 text-sm font-semibold text-blue-700">Manage investors →</a>
