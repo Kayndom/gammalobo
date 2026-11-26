@@ -20,7 +20,7 @@ function App() {
 
   useEffect(() => {
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const timer = window.setTimeout(() => setIntroComplete(true), reducedMotion ? 250 : 2200)
+    const timer = window.setTimeout(() => setIntroComplete(true), reducedMotion ? 250 : 4200)
     return () => window.clearTimeout(timer)
   }, [])
 
