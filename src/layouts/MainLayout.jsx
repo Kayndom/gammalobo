@@ -54,6 +54,7 @@ export default function MainLayout({ children }) {
     { to: '/finance', label: 'Finance', icon: '05' },
     { to: '/investors', label: 'Investors', icon: '06' },
     { to: '/settings', label: 'Settings', icon: '07' },
+    { to: '/audit', label: 'Audit trail', icon: '08' },
   ]
 
   return (
