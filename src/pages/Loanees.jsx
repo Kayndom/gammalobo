@@ -70,7 +70,7 @@ export default function Loanees() {
                 placeholder="Search by name or phone..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
               />
             </div>
             {loading ? (
@@ -86,7 +86,7 @@ export default function Loanees() {
                   <div
                     key={loanee.id}
                     onClick={() => handleSelect(loanee)}
-                    className={`p-4 cursor-pointer hover:bg-gray-50 transition ${selected?.id === loanee.id ? 'bg-blue-50' : ''}`}
+                    className={`p-4 cursor-pointer hover:bg-gray-50 transition ${selected?.id === loanee.id ? 'bg-slate-100' : ''}`}
                   >
                     <div className="flex justify-between items-start">
                       <div>
