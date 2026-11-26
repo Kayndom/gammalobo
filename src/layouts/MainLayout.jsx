@@ -19,11 +19,12 @@ export default function MainLayout({ children }) {
       inSevenDays.setDate(inSevenDays.getDate() + 7)
       const inFourteenDays = new Date(today)
       inFourteenDays.setDate(inFourteenDays.getDate() + 14)
+      await supabase.rpc('check_overdue_loans')
       const [overdueResult, dueSoonResult, applicationResult, maturityResult] = await Promise.all([
         supabase.from('loans').select('id,due_date,applicants(full_name)').eq('status', 'overdue').order('due_date', { ascending: true }),
         supabase.from('loans').select('id,due_date,applicants(full_name)').eq('status', 'active').gte('due_date', todayKey).lte('due_date', inSevenDays.toISOString().slice(0, 10)).order('due_date', { ascending: true }),
         supabase.from('applications').select('id,status,created_at,applicants(full_name)').in('status', ['pending_loanee', 'pending_guarantor', 'pending_review']).order('created_at', { ascending: true }),
-        supabase.from('investments').select('id,maturity_date,investors(full_name)').eq('status', 'active').gte('maturity_date', todayKey).lte('maturity_date', inFourteenDays.toISOString().slice(0, 10)).order('maturity_date', { ascending: true }),
+        supabase.from('investments').select('id,maturity_date,investors(full_name)').eq('status', 'active').lte('maturity_date', inFourteenDays.toISOString().slice(0, 10)).order('maturity_date', { ascending: true }),
       ])
       if (!mounted) return
       const items = []
@@ -127,7 +128,7 @@ export default function MainLayout({ children }) {
           <div className="hidden lg:block text-xs text-slate-500">Business workspace</div>
           <div className="ml-auto relative">
             <button type="button" onClick={() => setNotificationsOpen(v => !v)} aria-label={'Notifications, ' + notifications.length + ' items'} aria-expanded={notificationsOpen} className="relative w-10 h-10 flex items-center justify-center rounded-md border border-[var(--border)] text-slate-700 hover:bg-slate-50">
-              <span className="text-lg">♧</span>
+              <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
               {notifications.length > 0 && <span className="absolute -top-1 -right-1 min-w-[19px] h-[19px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center">{notifications.length > 99 ? '99+' : notifications.length}</span>}
             </button>
             {notificationsOpen && <div className="fixed sm:absolute top-[60px] sm:top-12 left-3 right-3 sm:left-auto sm:right-0 sm:w-[370px] max-h-[75dvh] overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl z-50">
