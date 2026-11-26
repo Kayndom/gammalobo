@@ -9,6 +9,7 @@ import Loanees from './pages/Loanees'
 import Settings from './pages/Settings'
 import Finance from './pages/Finance'
 import Investors from './pages/Investors'
+import AuditTrail from './pages/AuditTrail'
 import LoaneeForm from './pages/LoaneeForm'
 import GuarantorForm from './pages/GuarantorForm'
 
@@ -46,6 +47,7 @@ function App() {
         <Route path="/finance" element={session ? <Finance /> : <Navigate to="/" />} />
         <Route path="/investors" element={session ? <Investors /> : <Navigate to="/" />} />
         <Route path="/settings" element={session ? <Settings /> : <Navigate to="/" />} />
+        <Route path="/audit" element={session ? <AuditTrail /> : <Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
   )
