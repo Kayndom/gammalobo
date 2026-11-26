@@ -3,6 +3,7 @@ import MainLayout from '../layouts/MainLayout'
 import { supabase } from '../lib/supabase'
 
 const money = n => '₦' + Number(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const formatAmountInput = value => { const raw = String(value ?? '').replace(/,/g, ''); if (!raw || !/^\d*\.?\d*$/.test(raw)) return raw; const [whole, decimal] = raw.split('.'); const formatted = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ','); return decimal === undefined ? formatted : `${formatted}.${decimal}` }
 const cashWithdrawalTypes = ['earnings', 'bonus', 'expense']
 
 export default function Finance() {
@@ -129,7 +130,7 @@ export default function Finance() {
       {error && <p className="p-3 rounded-xl bg-red-50 text-red-700 text-sm">{error}</p>}
       {showCapitalForm && <form onSubmit={addCapital} className="bg-white rounded-2xl border p-5 grid sm:grid-cols-3 gap-3">
         <h2 className="sm:col-span-3 font-bold">Record owner capital injection</h2>
-        <input required type="number" min="0.01" step="0.01" placeholder="Amount (₦)" className="border rounded-lg p-2" value={capitalForm.amount} onChange={e => setCapitalForm({ ...capitalForm, amount: e.target.value })} />
+        <input required type="text" inputMode="decimal" placeholder="Amount (₦)" className="border rounded-lg p-2" value={capitalForm.amount} onChange={e => setCapitalForm({ ...capitalForm, amount: formatAmountInput(e.target.value) })} />
         <input placeholder="Note (optional)" className="border rounded-lg p-2" value={capitalForm.note} onChange={e => setCapitalForm({ ...capitalForm, note: e.target.value })} />
         <button disabled={saving} className="rounded-lg bg-slate-800 text-white p-2">{saving ? 'Saving…' : 'Save capital injection'}</button>
       </form>}
@@ -138,7 +139,7 @@ export default function Finance() {
         <select className="border rounded-lg p-2" value={withdrawalForm.withdrawal_type} onChange={e => setWithdrawalForm({ ...withdrawalForm, withdrawal_type: e.target.value })}>
           <option value="earnings">Monthly earnings (owner pay)</option><option value="bonus">Bonus withdrawal</option><option value="expense">Business expense</option><option value="profit_to_capital">Move profit to capital (non-cash)</option>
         </select>
-        <input required type="number" min="0.01" step="0.01" placeholder="Amount (₦)" className="border rounded-lg p-2" value={withdrawalForm.amount} onChange={e => setWithdrawalForm({ ...withdrawalForm, amount: e.target.value })} />
+        <input required type="text" inputMode="decimal" placeholder="Amount (₦)" className="border rounded-lg p-2" value={withdrawalForm.amount} onChange={e => setWithdrawalForm({ ...withdrawalForm, amount: formatAmountInput(e.target.value) })} />
         <input placeholder="Reason / note" className="border rounded-lg p-2" value={withdrawalForm.note} onChange={e => setWithdrawalForm({ ...withdrawalForm, note: e.target.value })} />
         <button disabled={saving} className="rounded-lg bg-blue-700 text-white p-2">{saving ? 'Saving…' : 'Record transaction'}</button>
       </form>}
