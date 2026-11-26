@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 
 const money = n => '₦' + Number(n || 0).toLocaleString('en-NG', { maximumFractionDigits: 2 })
 const today = new Date().toISOString().slice(0,10)
+const addMonthsClamped = (date, months) => { const result = new Date(date); const day = result.getDate(); result.setDate(1); result.setMonth(result.getMonth() + months); const lastDay = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate(); result.setDate(Math.min(day, lastDay)); return result }
 const blank = { full_name:'', phone:'', email:'' }
 const terms = { investor_id:'', principal:'', monthly_rate:'', start_date:today, term_months:'6', payout_schedule:'monthly', custom_interval_months:'1', note:'' }
 export default function Investors() {
@@ -31,7 +32,7 @@ export default function Investors() {
  async function addInvestment(e){e.preventDefault();setBusy(true);setError('')
   const principal=Number(deal.principal), rate=Number(deal.monthly_rate), months=Number(deal.term_months)
   if(!deal.investor_id||!(principal>0&&rate>=0&&months>0)){setError('Select an investor and enter valid principal, rate and term.');setBusy(false);return}
-  const start=new Date(deal.start_date+'T12:00:00');const maturity=new Date(start);maturity.setMonth(maturity.getMonth()+months)
+  const start=new Date(deal.start_date+'T12:00:00');const maturity=addMonthsClamped(start,months)
   const {error}=await supabase.from('investments').insert({investor_id:deal.investor_id,principal,monthly_rate:rate,start_date:deal.start_date,maturity_date:maturity.toISOString().slice(0,10),term_months:months,payout_schedule:deal.payout_schedule,custom_interval_months:Number(deal.custom_interval_months||1),note:deal.note,status:'pending_funding',funded_at:null})
   if(error)setError(error.message);else{setDeal(terms);setShowDeal(false);setMessage('Agreement saved as awaiting funds. Confirm receipt only after the money arrives.');await load()}
   setBusy(false)
@@ -41,8 +42,7 @@ export default function Investors() {
   setBusy(true);setError('')
   const fundedAt=new Date()
   const effectiveStart=fundedAt.toISOString().slice(0,10)
-  const maturity=new Date(fundedAt)
-  maturity.setMonth(maturity.getMonth()+Number(investments.find(item=>item.id===id)?.term_months||0))
+  const maturity=addMonthsClamped(fundedAt,Number(investments.find(item=>item.id===id)?.term_months||0))
   const {error}=await supabase.from('investments').update({status:'active',funded_at:fundedAt.toISOString(),start_date:effectiveStart,maturity_date:maturity.toISOString().slice(0,10)}).eq('id',id).eq('status','pending_funding')
   if(error)setError(error.message);else setMessage('Funds received confirmed; the investment term and interest clock start today.')
   await load();setBusy(false)
