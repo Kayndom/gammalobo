@@ -16,6 +16,13 @@ import GuarantorForm from './pages/GuarantorForm'
 function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [introComplete, setIntroComplete] = useState(false)
+
+  useEffect(() => {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const timer = window.setTimeout(() => setIntroComplete(true), reducedMotion ? 250 : 2200)
+    return () => window.clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -27,10 +34,22 @@ function App() {
     })
   }, [])
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <p className="text-gray-500">Loading...</p>
-    </div>
+  if (!introComplete || loading) return (
+    <main className="regnum-intro min-h-screen flex items-center justify-center px-6" aria-label="REGNUM Ventures introduction">
+      <div className="regnum-intro-content text-center">
+        <div className="regnum-intro-mark mx-auto" aria-hidden="true">
+          <span>R</span>
+        </div>
+        <p className="regnum-intro-eyebrow mt-8">REGNUM VENTURES</p>
+        <h1 className="regnum-intro-title mt-3">Clarity in every<br />financial decision.</h1>
+        <p className="regnum-intro-caption mt-4">Business finance, thoughtfully managed.</p>
+        <div className="regnum-intro-progress mt-10" aria-hidden="true"><span /></div>
+        {introComplete
+          ? <p className="regnum-intro-caption mt-4" role="status">Preparing your workspace…</p>
+          : <button type="button" className="regnum-intro-skip mt-8" onClick={() => setIntroComplete(true)}>Skip introduction</button>}
+      </div>
+      <span className="regnum-intro-footer">PRIVATE WORKSPACE <span>·</span> {new Date().getFullYear()}</span>
+    </main>
   )
 
   return (
