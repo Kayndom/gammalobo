@@ -37,8 +37,15 @@ body {
   line-height: 1.5;
 }
 button, input, select, textarea { font: inherit; }
-button { cursor: pointer; }
+button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 button:disabled { cursor: not-allowed; opacity: .55; }
+button, a, input, select, textarea { transition-property: color, background-color, border-color, box-shadow, opacity; transition-duration: 150ms; }
+a { color: inherit; }
+::selection { background: #dce5ec; color: #172633; }
+
+/* Keep long records and overlays usable on touch screens. */
+[role="dialog"] { overscroll-behavior: contain; }
+[role="dialog"] button, [role="dialog"] a { touch-action: manipulation; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 h1, h2, h3, h4, .page-title {
@@ -77,6 +84,11 @@ th {
 }
 th, td { border-bottom: 1px solid var(--border); }
 tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background-color: #fafbfc; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
 
 @media (max-width: 640px) {
   body { font-size: 13px; }
