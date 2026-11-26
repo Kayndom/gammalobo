@@ -566,8 +566,9 @@ async function syncAllToSheets() {
   className="w-full py-2 rounded-lg text-sm font-medium text-white hover:opacity-90 transition"
   style={{ background: '#24384b' }}
 >
-  Download Complete Backup (JSON)
+  Download All App Data (JSON)
 </button>
+<p className="text-xs text-slate-500">Includes every business-data table used by the app, full row contents, audit history and record counts. Large tables are downloaded in pages to avoid silent row-limit omissions. Login credentials, platform secrets, external Google Sheets and uploaded storage files are excluded and identified in the backup manifest.</p>
 <div className="border-t pt-3">
   <p className="text-xs text-gray-500 mb-2">Sync all existing data to Google Sheets</p>
   {syncMessage && (
