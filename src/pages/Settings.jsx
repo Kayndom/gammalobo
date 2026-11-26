@@ -401,17 +401,17 @@ async function syncAllToSheets() {
 
   return (
     <MainLayout>
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
 
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Settings</h1>
-          <p className="text-gray-500 text-sm">Manage your business details and loan rates</p>
+        <div className="mb-7"><p className="text-xs uppercase tracking-[.14em] font-semibold text-slate-500 mb-1">ADMINISTRATION</p>
+          <h1 className="text-2xl font-bold text-slate-800">Settings</h1>
+          <p className="text-slate-500 text-sm">Manage business information, lending defaults, security and backups</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-5 sm:p-7 space-y-7">
 
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wide">
+            <h2 className="text-sm font-bold text-slate-800 mb-4">
               Business Details
             </h2>
             <div className="space-y-4">
@@ -454,7 +454,7 @@ async function syncAllToSheets() {
             </div>
           </div>
 
-          <div className="border-t pt-6">
+          <div className="border-t border-slate-200 pt-6">
             <h2 className="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wide">
               Loan Settings
             </h2>
@@ -516,7 +516,7 @@ async function syncAllToSheets() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50"
+            className="w-full bg-slate-800 text-white py-3 rounded-md text-sm font-semibold hover:bg-slate-700 transition disabled:opacity-50"
           >
             {saving ? 'Saving...' : 'Save Settings'}
           </button>
@@ -557,7 +557,7 @@ async function syncAllToSheets() {
     <button
       onClick={exportLoans}
       className="w-full py-2 rounded-lg text-sm font-medium text-white hover:opacity-90 transition"
-      style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5282)' }}
+      style={{ background: '#24384b' }}
     >
       Export Loans to CSV
     </button>
@@ -586,7 +586,7 @@ async function syncAllToSheets() {
     <button
   onClick={exportAll}
   className="w-full py-2 rounded-lg text-sm font-medium text-white hover:opacity-90 transition"
-  style={{ background: 'linear-gradient(135deg, #c9a84c, #e6c97a)' }}
+  style={{ background: '#24384b' }}
 >
   Export Everything (Full Backup)
 </button>
@@ -601,7 +601,7 @@ async function syncAllToSheets() {
     onClick={syncAllToSheets}
     disabled={syncing}
     className="w-full py-2 rounded-lg text-sm font-medium text-white hover:opacity-90 transition disabled:opacity-50"
-    style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)' }}
+    style={{ background: '#475569' }}
   >
     {syncing ? 'Syncing...' : '📊 Sync All Data to Google Sheets'}
   </button>
