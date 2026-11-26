@@ -79,6 +79,9 @@ export default function Loans() {
   const [approvedApps, setApprovedApps] = useState([])
   const [disbursing, setDisbursing] = useState(null)
   const [rollovers, setRollovers] = useState([])
+  const [showRolloverForm, setShowRolloverForm] = useState(false)
+  const [rolloverForm, setRolloverForm] = useState({ startDate: '', rate: '', duration: '' })
+  const [rollingOver, setRollingOver] = useState(false)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
 
@@ -256,65 +259,60 @@ export default function Loans() {
     fetchLoans()
   }
 
-  async function handleRollover(loan) {
-    const { data: settings } = await supabase.from('settings').select('*').single()
-    const previousOutstanding = loan.outstanding_balance
+  async function handleRollover(loan, form) {
+    const startDate = new Date(`${form.startDate}T12:00:00`)
+    const rate = Number(form.rate)
+    const duration = Number(form.duration)
+    if (!form.startDate || Number.isNaN(startDate.getTime()) || !Number.isFinite(rate) || rate < 0 || !Number.isInteger(duration) || duration < 1) {
+      setMessage('Enter a valid rollover start date, interest rate and duration.')
+      return
+    }
+
+    setRollingOver(true)
+    setMessage('')
+    const previousOutstanding = Number(loan.outstanding_balance)
     const newPrincipal = previousOutstanding
-    const rate = settings.penalty_interest_rate
     const interest = (newPrincipal * rate) / 100
     const total = newPrincipal + interest
-    const now = new Date()
-    const dueDate = new Date(now)
-    dueDate.setDate(dueDate.getDate() + settings.loan_duration_days)
-    const newRolloverCount = (loan.rollover_count || 0) + 1
+    const dueDate = new Date(startDate)
+    dueDate.setDate(dueDate.getDate() + duration)
+    const newRolloverCount = Number(loan.rollover_count || 0) + 1
 
     const { error: loanError } = await supabase.from('loans').update({
-      principal: newPrincipal,
-      interest_rate: rate,
-      interest_amount: interest,
-      total_owed: total,
-      amount_paid: 0,
-      outstanding_balance: total,
-      loan_type: 'rollover',
-      rollover_count: newRolloverCount,
-      last_rolled_over_at: now.toISOString(),
-      due_date: dueDate.toISOString(),
-      status: 'active',
-      disbursed_at: now.toISOString(),
+      principal: newPrincipal, interest_rate: rate, interest_amount: interest,
+      total_owed: total, amount_paid: 0, outstanding_balance: total,
+      loan_type: 'rollover', rollover_count: newRolloverCount,
+      last_rolled_over_at: startDate.toISOString(), due_date: dueDate.toISOString(),
+      status: 'active', disbursed_at: startDate.toISOString(),
     }).eq('id', loan.id)
 
-    if (loanError) return
+    if (loanError) {
+      setMessage(`Rollover failed: ${loanError.message}`)
+      setRollingOver(false)
+      return
+    }
 
-    await supabase.from('rollovers').insert({
-      loan_id: loan.id,
-      rollover_number: newRolloverCount,
-      previous_outstanding: previousOutstanding,
-      new_principal: newPrincipal,
-      new_interest_rate: rate,
-      new_interest_amount: interest,
-      new_total_owed: total,
-      new_due_date: dueDate.toISOString(),
+    const { error: rolloverError } = await supabase.from('rollovers').insert({
+      loan_id: loan.id, rollover_number: newRolloverCount,
+      previous_outstanding: previousOutstanding, new_principal: newPrincipal,
+      new_interest_rate: rate, new_interest_amount: interest, new_total_owed: total,
+      rolled_over_at: startDate.toISOString(), new_due_date: dueDate.toISOString(),
     })
+    if (rolloverError) {
+      setMessage(`Loan updated, but rollover history could not be saved: ${rolloverError.message}. Please contact support before retrying.`)
+      setRollingOver(false)
+      await fetchLoans()
+      return
+    }
 
     await supabase.from('loan_logs').insert([
-      {
-        loan_id: loan.id,
-        activity_type: 'overdue',
-        description: `Loan became overdue. Outstanding balance at rollover: ₦${Number(previousOutstanding).toLocaleString()}`,
-        amount: previousOutstanding,
-        balance_after: previousOutstanding,
-      },
-      {
-        loan_id: loan.id,
-        activity_type: 'rollover',
-        description: `Loan rolled over. New principal: ₦${Number(newPrincipal).toLocaleString()}, Penalty interest (${rate}%): ₦${Number(interest).toLocaleString()}, New total: ₦${Number(total).toLocaleString()}, New due date: ${dueDate.toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}`,
-        amount: total,
-        balance_after: total,
-      }
+      { loan_id: loan.id, activity_type: 'overdue', description: `Loan became overdue. Outstanding balance at rollover: ₦${previousOutstanding.toLocaleString()}`, amount: previousOutstanding, balance_after: previousOutstanding },
+      { loan_id: loan.id, activity_type: 'rollover', description: `Loan rolled over from ${startDate.toLocaleDateString('en-NG')}. New principal: ₦${newPrincipal.toLocaleString()}, Interest (${rate}%): ₦${interest.toLocaleString()}, Duration: ${duration} days, New total: ₦${total.toLocaleString()}, New due date: ${dueDate.toLocaleDateString('en-NG')}`, amount: total, balance_after: total },
     ])
-
     setSelectedLoan(null)
     setRollovers([])
+    setShowRolloverForm(false)
+    setRollingOver(false)
     fetchLoans()
   }
 
@@ -974,29 +972,56 @@ export default function Loans() {
               )}
 
               {(selectedLoan.status === 'active' || selectedLoan.status === 'overdue') && selectedLoan.outstanding_balance > 0 && (
-                <div className="border-t pt-4 space-y-2">
-                  <button
-                    onClick={() => {
-                      if (window.confirm(`Roll over this loan?\n\nOutstanding: ₦${Number(selectedLoan.outstanding_balance).toLocaleString()}\nNew interest: ${appSettings?.penalty_interest_rate || 20}%\nNew due date: ${appSettings?.loan_duration_days || 30} days from today`)) {
-                        handleRollover(selectedLoan)
-                      }
-                    }}
-                    className="w-full text-white py-2 rounded-xl text-sm font-bold hover:opacity-90 transition"
-                    style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}
-                  >
-                    🔄 Roll Over Loan
-                  </button>
-                  {selectedLoan.guarantors?.phone && (
-                    
-                      <a href={getWhatsAppRolloverLink(selectedLoan, appSettings)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-bold hover:opacity-90 transition"
-                      style={{ background: '#25d366', color: 'white' }}
-                    >
-                      📱 Notify Guarantor on WhatsApp
-                    </a>
+                <div className="border-t pt-4 space-y-3">
+                  {!showRolloverForm ? (
+                    <button onClick={() => {
+                      const now = new Date()
+                      const today = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+                      setRolloverForm({ startDate: today, rate: String(appSettings?.penalty_interest_rate ?? 20), duration: String(appSettings?.loan_duration_days ?? 30) })
+                      setShowRolloverForm(true)
+                      setMessage('')
+                    }} className="w-full text-white py-2 rounded-xl text-sm font-bold" style={{ background: 'linear-gradient(135deg, #ea580c, #c2410c)' }}>
+                      🔄 Roll Over Loan
+                    </button>
+                  ) : (
+                    <div className="rounded-xl border border-orange-200 p-4 space-y-3" style={{ background: '#fffbf5' }}>
+                      <h3 className="text-sm font-bold text-gray-800">Set rollover terms</h3>
+                      <label className="block text-xs font-semibold text-gray-600">Rollover start date
+                        <input type="date" value={rolloverForm.startDate} onChange={e => setRolloverForm({ ...rolloverForm, startDate: e.target.value })} className="mt-1 w-full border rounded-lg p-2 text-sm" />
+                      </label>
+                      <label className="block text-xs font-semibold text-gray-600">New interest rate (%)
+                        <input type="number" min="0" step="0.01" value={rolloverForm.rate} onChange={e => setRolloverForm({ ...rolloverForm, rate: e.target.value })} className="mt-1 w-full border rounded-lg p-2 text-sm" />
+                      </label>
+                      <label className="block text-xs font-semibold text-gray-600">New duration (days)
+                        <input type="number" min="1" step="1" value={rolloverForm.duration} onChange={e => setRolloverForm({ ...rolloverForm, duration: e.target.value })} className="mt-1 w-full border rounded-lg p-2 text-sm" />
+                      </label>
+                      {(() => {
+                        const principal = Number(selectedLoan.outstanding_balance || 0)
+                        const rate = Number(rolloverForm.rate)
+                        const duration = Number(rolloverForm.duration)
+                        const start = rolloverForm.startDate ? new Date(`${rolloverForm.startDate}T12:00:00`) : null
+                        const due = start && Number.isInteger(duration) && duration > 0 ? new Date(start) : null
+                        if (due) due.setDate(due.getDate() + duration)
+                        const valid = !!start && !Number.isNaN(start.getTime()) && Number.isFinite(rate) && rate >= 0 && Number.isInteger(duration) && duration > 0
+                        return <div className="rounded-lg bg-white p-3 text-xs space-y-1">
+                          <p>New principal: <strong>₦{principal.toLocaleString()}</strong></p>
+                          <p>New interest: <strong>{valid ? `₦${(principal * rate / 100).toLocaleString()}` : '—'}</strong></p>
+                          <p>New total owed: <strong>{valid ? `₦${(principal * (1 + rate / 100)).toLocaleString()}` : '—'}</strong></p>
+                          <p>New due date: <strong>{valid && due ? due.toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</strong></p>
+                        </div>
+                      })()}
+                      {message && <p className="text-xs text-red-600">{message}</p>}
+                      <div className="flex gap-2">
+                        <button onClick={() => { setShowRolloverForm(false); setMessage('') }} className="flex-1 border rounded-lg py-2 text-sm font-semibold">Cancel</button>
+                        <button disabled={rollingOver || !rolloverForm.startDate || !Number.isFinite(Number(rolloverForm.rate)) || Number(rolloverForm.rate) < 0 || !Number.isInteger(Number(rolloverForm.duration)) || Number(rolloverForm.duration) < 1} onClick={() => {
+                          if (window.confirm('Confirm this rollover using the terms shown above?')) handleRollover(selectedLoan, rolloverForm)
+                        }} className="flex-1 text-white rounded-lg py-2 text-sm font-bold disabled:opacity-50" style={{ background: '#c2410c' }}>
+                          {rollingOver ? 'Processing…' : 'Confirm rollover'}
+                        </button>
+                      </div>
+                    </div>
                   )}
+                  {selectedLoan.guarantors?.phone && <a href={getWhatsAppRolloverLink(selectedLoan, appSettings)} target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-bold" style={{ background: '#25d366', color: 'white' }}>📱 Notify Guarantor on WhatsApp</a>}
                   <p className="text-xs text-gray-400 text-center">Notify guarantor before or after rolling over</p>
                 </div>
               )}
