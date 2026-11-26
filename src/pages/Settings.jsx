@@ -17,6 +17,9 @@ const [syncMessage, setSyncMessage] = useState('')
 const [restorePreview, setRestorePreview] = useState(null)
 const [restoreError, setRestoreError] = useState('')
 const [checkingRestore, setCheckingRestore] = useState(false)
+const [restoreBackupData, setRestoreBackupData] = useState(null)
+const [liveComparison, setLiveComparison] = useState(null)
+const [comparingLive, setComparingLive] = useState(false)
 
   useEffect(() => {
     fetchSettings()
@@ -327,6 +330,8 @@ async function exportAll() {
 async function inspectBackupFile(e) {
   const file = e.target.files?.[0]
   setRestorePreview(null)
+  setRestoreBackupData(null)
+  setLiveComparison(null)
   setRestoreError('')
   if (!file) return
   setCheckingRestore(true)
@@ -345,6 +350,7 @@ async function inspectBackupFile(e) {
     }
     const total = Object.values(counts).reduce((sum, count) => sum + count, 0)
     if (parsed.total_records !== total) throw new Error('The total record count does not match the contents of the backup.')
+    setRestoreBackupData(parsed)
     setRestorePreview({ fileName: file.name, createdAt: parsed.created_at || 'Not recorded', total, counts, business: parsed.business || 'REGNUM Ventures', exclusions: parsed.coverage?.excludes || [] })
   } catch (err) {
     setRestoreError(err.message || 'Could not inspect this backup file.')
@@ -352,6 +358,57 @@ async function inspectBackupFile(e) {
     setCheckingRestore(false)
     e.target.value = ''
   }
+}
+
+
+async function compareBackupWithLive() {
+  if (!restoreBackupData) return
+  setComparingLive(true); setRestoreError(''); setLiveComparison(null)
+  const tables = ['settings','applicants','guarantors','applications','loans','instalments','loan_logs','rollovers','capital_injections','profit_withdrawals','investors','investments','investor_accruals','investor_payments','audit_logs']
+  const foreignKeys = [
+    ['applications','applicant_id','applicants'],['applications','guarantor_id','guarantors'],['guarantors','applicant_id','applicants'],
+    ['instalments','loan_id','loans'],['investments','investor_id','investors'],['investor_accruals','investment_id','investments'],
+    ['investor_payments','investment_id','investments'],['loan_logs','loan_id','loans'],['loans','applicant_id','applicants'],
+    ['loans','application_id','applications'],['loans','guarantor_id','guarantors'],['rollovers','loan_id','loans']
+  ]
+  try {
+    const live = {}, liveById = {}
+    for (const table of tables) {
+      let rows = [], from = 0
+      while (true) {
+        const { data, error } = await supabase.from(table).select('*').range(from, from + 999)
+        if (error) throw new Error('Could not read live ' + table + ': ' + error.message)
+        const page = data || []; rows = rows.concat(page)
+        if (page.length < 1000) break
+        from += 1000
+      }
+      live[table] = rows; liveById[table] = new Map(rows.map(row => [String(row.id), row]))
+    }
+    const backupIds = {}
+    for (const table of tables) backupIds[table] = new Set((restoreBackupData.tables[table] || []).map(row => String(row.id)))
+    const stable = value => Array.isArray(value) ? value.map(stable) : value && typeof value === 'object' ? Object.keys(value).sort().reduce((o,k) => {o[k]=stable(value[k]);return o}, {}) : value
+    const summary = {}, conflicts = [], missingRowsByTable = {}
+    for (const table of tables) {
+      let missing=0, identical=0, different=0; const missingRows=[]
+      for (const row of restoreBackupData.tables[table] || []) {
+        const existing = liveById[table].get(String(row.id))
+        if (!existing) { missing++; missingRows.push(row) }
+        else if (JSON.stringify(stable(existing)) === JSON.stringify(stable(row))) identical++
+        else { different++; if (conflicts.length < 20) conflicts.push({table,id:String(row.id)}) }
+      }
+      summary[table] = {backup:restoreBackupData.tables[table].length,live:live[table].length,missing,identical,different}
+      missingRowsByTable[table]=missingRows
+    }
+    const brokenReferences=[]
+    for (const [child,column,parent] of foreignKeys) for (const row of missingRowsByTable[child]) {
+      const ref=row[column]
+      if (ref && !backupIds[parent].has(String(ref)) && !liveById[parent].has(String(ref)) && brokenReferences.length<20)
+        brokenReferences.push({table:child,column,expectedTable:parent})
+    }
+    setLiveComparison({summary, totalMissing:Object.values(summary).reduce((n,x)=>n+x.missing,0), totalDifferent:Object.values(summary).reduce((n,x)=>n+x.different,0), totalIdentical:Object.values(summary).reduce((n,x)=>n+x.identical,0), conflicts, brokenReferences})
+  } catch(err) {
+    setRestoreError('Live comparison stopped: ' + err.message + '. No records were changed.')
+  } finally { setComparingLive(false) }
 }
 
 async function syncAllToSheets() {
@@ -630,11 +687,22 @@ async function syncAllToSheets() {
     <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
       <div><p className="text-sm font-semibold text-slate-800">Backup passed the structural checks</p><p className="text-xs text-slate-500">{restorePreview.fileName} · {restorePreview.business} · {restorePreview.createdAt}</p></div>
       <p className="text-sm text-slate-700"><strong>{restorePreview.total.toLocaleString()}</strong> records across {Object.keys(restorePreview.counts).length} required data tables</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {Object.entries(restorePreview.counts).map(([table, count]) => <div key={table} className="flex justify-between gap-3 text-xs border-b border-slate-200 py-1"><span className="text-slate-600">{table}</span><strong className="text-slate-800">{count.toLocaleString()}</strong></div>)}
-      </div>
-      {restorePreview.exclusions.length > 0 && <div><p className="text-xs font-semibold text-slate-700 mb-1">Not contained in this file</p><ul className="list-disc pl-5 text-xs text-slate-500 space-y-1">{restorePreview.exclusions.map((item, index) => <li key={index}>{item}</li>)}</ul></div>}
-      <p className="text-xs text-amber-700 border-t border-slate-200 pt-3">No data has been restored. Actual restoration requires a separate protected process and should first be tested in an isolated database.</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{Object.entries(restorePreview.counts).map(([table,count])=><div key={table} className="flex justify-between gap-3 text-xs border-b border-slate-200 py-1"><span className="text-slate-600">{table}</span><strong className="text-slate-800">{count.toLocaleString()}</strong></div>)}</div>
+      {restorePreview.exclusions.length>0 && <div><p className="text-xs font-semibold text-slate-700 mb-1">Not contained in this file</p><ul className="list-disc pl-5 text-xs text-slate-500 space-y-1">{restorePreview.exclusions.map((item,index)=><li key={index}>{item}</li>)}</ul></div>}
+      <button type="button" onClick={compareBackupWithLive} disabled={comparingLive} className="w-full py-3 rounded-md text-sm font-semibold text-white disabled:opacity-50" style={{background:'#24384b'}}>{comparingLive?'Comparing with live database…':'Compare backup with live database (read-only)'}</button>
+      {liveComparison && <div className="border-t border-slate-200 pt-3 space-y-3">
+        <p className="text-sm font-semibold text-slate-800">Live comparison complete — read-only</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+          <div className="rounded border bg-white p-3"><strong className="block text-lg">{liveComparison.totalMissing.toLocaleString()}</strong><span className="text-slate-500">Backup records not in live DB</span></div>
+          <div className="rounded border bg-white p-3"><strong className="block text-lg">{liveComparison.totalIdentical.toLocaleString()}</strong><span className="text-slate-500">Existing identical records</span></div>
+          <div className="rounded border bg-white p-3"><strong className="block text-lg">{liveComparison.totalDifferent.toLocaleString()}</strong><span className="text-slate-500">Existing IDs with differences</span></div>
+        </div>
+        {Object.entries(liveComparison.summary).map(([table,item])=><div key={table} className="flex flex-wrap justify-between gap-2 border-b border-slate-200 py-2 text-xs"><strong className="text-slate-700">{table}</strong><span className="text-slate-500">Backup {item.backup} · Live {item.live} · Missing {item.missing} · Identical {item.identical} · Different {item.different}</span></div>)}
+        {liveComparison.brokenReferences.length>0 && <div className="rounded border border-red-200 bg-red-50 p-3"><p className="text-sm font-semibold text-red-800">Missing relationship targets</p><p className="text-xs text-red-700">{liveComparison.brokenReferences.length} missing parent references detected (up to 20 shown). These must be resolved before any import.</p></div>}
+        {liveComparison.totalDifferent>0 && <div className="rounded border border-amber-200 bg-amber-50 p-3"><p className="text-sm font-semibold text-amber-800">Conflicting existing records ({liveComparison.totalDifferent})</p><p className="text-xs text-amber-700">The same IDs exist with different contents. No overwrite will be attempted. Example tables: {Array.from(new Set(liveComparison.conflicts.map(x=>x.table))).join(', ')}.</p></div>}
+        {liveComparison.totalDifferent===0 && liveComparison.brokenReferences.length===0 && <p className="text-xs text-emerald-700">No ID conflicts or missing relationship targets were detected. No records have been restored.</p>}
+        <p className="text-xs text-slate-500">Read-only comparison: no inserts, updates or deletes were performed. Write-enabled restoration remains disabled.</p>
+      </div>}
     </div>
   )}
 </div>
