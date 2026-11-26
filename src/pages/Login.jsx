@@ -19,73 +19,70 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4"
-      style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #2d5282 50%, #1e3a5f 100%)' }}>
-
-      <div className="w-full max-w-md">
-
-        {/* Logo */}
+    <main className="min-h-screen flex items-center justify-center px-4 py-10"
+      style={{ background: 'radial-gradient(ellipse at 50% 20%, #263744 0%, #17232d 46%, #101820 100%)' }}>
+      <div className="w-full max-w-[420px]">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
-            style={{ background: 'linear-gradient(135deg, #c9a84c, #e6c97a)' }}>
-            <span className="text-2xl font-black text-white">R</span>
+          <div className="inline-flex items-center justify-center w-[58px] h-[58px] border border-white/45 mb-5">
+            <span className="text-[29px] font-semibold tracking-[-.08em] text-white">R</span>
           </div>
-          <h1 className="text-3xl font-black text-white tracking-tight">Regnum</h1>
-          <p className="text-blue-200 text-sm mt-1 font-medium">Ventures  Loan Management</p>
+          <p className="text-[11px] font-bold tracking-[.28em] text-slate-300">REGNUM</p>
+          <p className="text-xs tracking-[.12em] text-slate-400 mt-2 uppercase">Ventures · Private workspace</p>
         </div>
 
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-1">Welcome back</h2>
-          <p className="text-gray-400 text-sm mb-6">Sign in to your dashboard</p>
+        <section className="bg-white border border-white/70 rounded-xl shadow-[0_24px_80px_rgba(0,0,0,.24)] p-6 sm:p-9">
+          <h1 className="text-[22px] font-bold text-slate-900 mb-1">Welcome back</h1>
+          <p className="text-slate-500 text-sm mb-7">Sign in to continue to your workspace.</p>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+              <label htmlFor="regnum-email" className="block text-sm font-semibold text-slate-700 mb-2">Email address</label>
               <input
+                id="regnum-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:border-transparent transition"
-                style={{ '--tw-ring-color': '#1e3a5f' }}
+                autoComplete="username"
+                className="w-full rounded-md border border-slate-300 px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Password</label>
+              <label htmlFor="regnum-password" className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
               <input
+                id="regnum-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:border-transparent transition"
-                placeholder="••••••••"
+                autoComplete="current-password"
+                className="w-full rounded-md border border-slate-300 px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500"
+                placeholder="Enter your password"
               />
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                <p className="text-red-600 text-sm">{error}</p>
+              <div className="bg-red-50 border border-red-200 rounded-md px-4 py-3" role="alert">
+                <p className="text-red-700 text-sm">{error}</p>
               </div>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full text-white py-3 rounded-xl text-sm font-bold hover:opacity-90 transition disabled:opacity-50 mt-2"
-              style={{ background: 'linear-gradient(135deg, #1e3a5f, #2d5282)' }}
+              className="w-full bg-[#1b2934] hover:bg-[#293b49] text-white py-3 rounded-md text-sm font-semibold tracking-wide transition-colors disabled:opacity-50"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
-        </div>
+        </section>
 
-        <p className="text-center text-blue-200 text-xs mt-6">
-          Regnum Ventures  © {new Date().getFullYear()}
+        <p className="text-center text-slate-500 text-[11px] mt-6 tracking-wide">
+          REGNUM VENTURES © {new Date().getFullYear()}
         </p>
       </div>
-    </div>
+    </main>
   )
 }
