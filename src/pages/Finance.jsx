@@ -164,7 +164,7 @@ export default function Finance() {
   })
   const ledgerTypes = [...new Set(transactionLedger.map(row => row.type))].sort()
 
-  const reconciliation = useMemo(() => {
+  const reconciliation = (() => {
     const issues = []
     const tolerance = 0.02
     loans.forEach(loan => {
@@ -199,7 +199,7 @@ export default function Finance() {
       }
     })
     return issues
-  }, [loans, instalments, investments, investorPayments, investorAccruals])
+  })()
 
   const cards = [
     ['Recorded net cash movement', money(stats.cashMovementEstimate), 'Estimated from recorded cash transactions; reconcile with bank balance'],
