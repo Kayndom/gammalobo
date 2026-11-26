@@ -87,7 +87,6 @@ export default function Loanees() {
                     type="button"
                     key={loanee.id}
                     onClick={() => handleSelect(loanee)}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(loanee) } }}
                     aria-pressed={selected?.id === loanee.id}
                     className={`w-full text-left p-4 cursor-pointer hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-500 transition ${selected?.id === loanee.id ? 'bg-slate-100' : ''}`}
                   >
