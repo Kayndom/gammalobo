@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import MainLayout from '../layouts/MainLayout'
 import { supabase } from '../lib/supabase'
 import { logLoanToSheets, logPaymentToSheets } from '../lib/sheets'
@@ -84,6 +84,8 @@ export default function Loans() {
   const [rollingOver, setRollingOver] = useState(false)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
+  const repaymentLock = useRef(false)
+  const rolloverLock = useRef(false)
 
   useEffect(() => { fetchLoans() }, [])
 
@@ -165,12 +167,15 @@ export default function Loans() {
 
   async function addInstalment() {
     if (!instalment.amount || !instalment.date || !selectedLoan) return
+    if (repaymentLock.current) return
+    repaymentLock.current = true
     setAdding(true)
     setMessage('')
     const amount = parseFloat(instalment.amount.replace(/,/g, ''))
     if (!Number.isFinite(amount) || amount <= 0) {
       setMessage('Enter a valid payment amount')
       setAdding(false)
+      repaymentLock.current = false
       return
     }
 
@@ -184,9 +189,11 @@ export default function Loans() {
     if (error) {
       setMessage(`Payment was not recorded: ${error.message}`)
       setAdding(false)
+      repaymentLock.current = false
       return
     }
 
+    repaymentLock.current = false
     const payment = {
       id: result.instalment_id,
       amount_paid: amount,
@@ -228,6 +235,8 @@ export default function Loans() {
       return
     }
 
+    if (rolloverLock.current) return
+    rolloverLock.current = true
     setRollingOver(true)
     setMessage('')
     const { error } = await supabase.rpc('rollover_loan', {
@@ -240,9 +249,11 @@ export default function Loans() {
     if (error) {
       setMessage(`Rollover failed: ${error.message}`)
       setRollingOver(false)
+      rolloverLock.current = false
       return
     }
 
+    rolloverLock.current = false
     setSelectedLoan(null)
     setRollovers([])
     setShowRolloverForm(false)
