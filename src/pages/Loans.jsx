@@ -815,6 +815,7 @@ export default function Loans() {
           {selectedLoan && (
             <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-0 sm:p-5" onClick={() => setSelectedLoan(null)}>
               <section role="dialog" aria-modal="true" aria-label="Loan details" onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-3xl rounded-t-2xl sm:rounded-xl shadow-2xl overflow-y-auto p-5 sm:p-7 space-y-5" style={{ maxHeight: '94dvh' }}>
+                <div className="sticky top-0 z-10 flex justify-end -mt-2 -mr-2"><button type="button" onClick={() => setSelectedLoan(null)} className="w-9 h-9 rounded-md border bg-white text-slate-600 hover:bg-slate-50" aria-label="Close loan details">×</button></div>
 
               <div className="flex justify-between items-start">
                 <div>
