@@ -60,10 +60,10 @@ export default function Loanees() {
           <p className="text-gray-500 text-sm">All registered borrowers</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-5 lg:gap-6">
 
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <div className="p-4 border-b">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-4 sm:p-5 border-b border-slate-200">
               <h2 className="text-sm font-semibold text-gray-700 mb-3">All Loanees</h2>
               <input
                 type="text"
@@ -116,7 +116,7 @@ export default function Loanees() {
                 <p className="text-xs text-gray-500 mt-0.5">{selected.occupation}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="bg-gray-50 rounded-lg p-3">
                   <p className="text-xs text-gray-500">Phone</p>
                   <p className="font-medium text-gray-800 text-sm">{selected.phone}</p>
@@ -125,7 +125,7 @@ export default function Loanees() {
                   <p className="text-xs text-gray-500">Email</p>
                   <p className="font-medium text-gray-800 text-sm">{selected.email || 'N/A'}</p>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-3 col-span-2">
+                <div className="bg-slate-50 rounded-lg p-3 sm:col-span-2">
                   <p className="text-xs text-gray-500">Address</p>
                   <p className="font-medium text-gray-800 text-sm">{selected.address}</p>
                 </div>
@@ -148,7 +148,7 @@ export default function Loanees() {
               </div>
 
               {loans.length > 0 && (
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="bg-gray-50 rounded-lg p-3 text-center">
                     <p className="text-xs text-gray-500">Total Borrowed</p>
                     <p className="font-bold text-gray-800 text-sm">
