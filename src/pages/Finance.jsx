@@ -19,6 +19,7 @@ export default function Finance() {
   const [investorAccruals, setInvestorAccruals] = useState([])
   const [instalments, setInstalments] = useState([])
   const [disbursements, setDisbursements] = useState([])
+  const [dataLoadError, setDataLoadError] = useState('')
   const [showCapitalForm, setShowCapitalForm] = useState(false)
   const [showWithdrawalForm, setShowWithdrawalForm] = useState(false)
   const [capitalForm, setCapitalForm] = useState({ amount: '', note: '' })
@@ -34,17 +35,17 @@ export default function Finance() {
     setLoading(true)
     setError('')
     const results = await Promise.all([
-      supabase.from('loans').select('id,principal,outstanding_balance,status,applicants(full_name)'),
+      supabase.from('loans').select('id,principal,total_owed,amount_paid,outstanding_balance,rollover_count,status,applicants(full_name)'),
       supabase.from('capital_injections').select('id,amount,note,injected_at'),
       supabase.from('profit_withdrawals').select('id,amount,withdrawal_type,withdrawn_at,note'),
-      supabase.from('investments').select('id,principal,status,funded_at,investors(full_name)'),
-      supabase.from('investor_payments').select('id,amount,payment_type,payment_date,investments(investors(full_name))'),
-      supabase.from('investor_accruals').select('amount'),
+      supabase.from('investments').select('id,investor_id,principal,status,funded_at,investors(full_name)'),
+      supabase.from('investor_payments').select('id,investment_id,amount,payment_type,payment_date,investments(investors(full_name))'),
+      supabase.from('investor_accruals').select('investment_id,amount'),
       supabase.from('instalments').select('id,loan_id,amount_paid,allocated_principal,allocated_interest,payment_date,loans(applicants(full_name))'),
       supabase.from('loan_logs').select('id,loan_id,amount,created_at,description,loans(applicants(full_name))').eq('activity_type', 'disbursement')
     ])
     const failed = results.find(result => result.error)
-    if (failed) setError(failed.error.message)
+    if (failed) { setError(failed.error.message); setDataLoadError(failed.error.message) } else setDataLoadError('')
     setLoans(results[0].data || [])
     setInjections(results[1].data || [])
     setWithdrawals(results[2].data || [])
@@ -163,6 +164,43 @@ export default function Finance() {
   })
   const ledgerTypes = [...new Set(transactionLedger.map(row => row.type))].sort()
 
+  const reconciliation = useMemo(() => {
+    const issues = []
+    const tolerance = 0.02
+    loans.forEach(loan => {
+      const cycle = Number(loan.rollover_count || 0)
+      const currentCyclePayments = instalments.filter(row => row.loan_id === loan.id && Number(row.rollover_number || 0) === cycle)
+      const recordedPayments = currentCyclePayments.reduce((sum, row) => sum + Number(row.amount_paid || 0), 0)
+      const expectedBalance = Math.max(0, Number(loan.total_owed || 0) - Number(loan.amount_paid || 0))
+      const storedBalance = Number(loan.outstanding_balance || 0)
+      if (Math.abs(expectedBalance - storedBalance) > tolerance) {
+        issues.push({ id: 'loan-balance-' + loan.id, area: 'Loan balance', person: loan.applicants?.full_name || 'Borrower', detail: 'Stored outstanding balance differs from total owed less payments in the current loan cycle.', expected: expectedBalance, recorded: storedBalance })
+      }
+      if (Math.abs(recordedPayments - Number(loan.amount_paid || 0)) > tolerance) {
+        issues.push({ id: 'loan-payments-' + loan.id, area: 'Loan repayments', person: loan.applicants?.full_name || 'Borrower', detail: 'Current-cycle instalment records do not match the amount-paid figure on the loan.', expected: Number(loan.amount_paid || 0), recorded: recordedPayments })
+      }
+    })
+    instalments.forEach(row => {
+      const allocated = Number(row.allocated_principal || 0) + Number(row.allocated_interest || 0)
+      if (Math.abs(Number(row.amount_paid || 0) - allocated) > tolerance) {
+        issues.push({ id: 'allocation-' + row.id, area: 'Repayment allocation', person: row.loans?.applicants?.full_name || 'Borrower', detail: 'Principal plus interest allocation does not equal the repayment amount.', expected: Number(row.amount_paid || 0), recorded: allocated })
+      }
+    })
+    investments.filter(item => item.funded_at && item.status !== 'cancelled').forEach(item => {
+      const payments = investorPayments.filter(row => row.investment_id === item.id)
+      const principalPaid = payments.filter(row => row.payment_type === 'principal').reduce((sum, row) => sum + Number(row.amount || 0), 0)
+      const interestPaid = payments.filter(row => row.payment_type === 'interest').reduce((sum, row) => sum + Number(row.amount || 0), 0)
+      const accrued = investorAccruals.filter(row => row.investment_id === item.id).reduce((sum, row) => sum + Number(row.amount || 0), 0)
+      if (principalPaid - Number(item.principal || 0) > tolerance) {
+        issues.push({ id: 'investor-principal-' + item.id, area: 'Investor principal', person: item.investors?.full_name || 'Investor', detail: 'Principal repayments exceed the funded principal.', expected: Number(item.principal || 0), recorded: principalPaid })
+      }
+      if (interestPaid - accrued > tolerance) {
+        issues.push({ id: 'investor-interest-' + item.id, area: 'Investor interest', person: item.investors?.full_name || 'Investor', detail: 'Interest payments exceed interest accrued for this agreement.', expected: accrued, recorded: interestPaid })
+      }
+    })
+    return issues
+  }, [loans, instalments, investments, investorPayments, investorAccruals])
+
   const cards = [
     ['Recorded net cash movement', money(stats.cashMovementEstimate), 'Estimated from recorded cash transactions; reconcile with bank balance'],
     ['Owner capital injected', money(stats.ownerCapital), 'Owner funding, not revenue'],
@@ -220,6 +258,15 @@ export default function Finance() {
           {monthlyRows.map(([label, amount, description]) => <div key={label} className="rounded-xl border p-3"><p className="text-xs text-gray-500">{label}</p><p className="text-lg font-bold text-slate-800 mt-1">{money(amount)}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
         </div>
         <p className="text-xs text-gray-500">This report uses transaction dates and recorded allocations. Capital received, investor funding, loan disbursements and borrower principal repayments are cash movements, not operating profit. It is a management summary, not an audited or statutory financial statement.</p>
+      </section>
+      <section className="bg-white rounded-lg border border-slate-200 p-5 space-y-4 shadow-sm">
+        <div className="flex flex-wrap justify-between items-start gap-3">
+          <div><h2 className="font-bold text-slate-800">Financial reconciliation</h2><p className="text-sm text-gray-500 mt-1">Read-only checks of loan balances, repayment allocations and investor payment limits.</p></div>
+          <button onClick={load} className="px-3 py-2 rounded-lg border text-sm">Run checks again</button>
+        </div>
+        {dataLoadError ? <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"><strong>Checks incomplete.</strong> Some financial records could not be loaded: {dataLoadError}. Refresh after resolving the data access issue.</div> : reconciliation.length === 0 ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4"><p className="font-semibold text-emerald-800">No discrepancies detected</p><p className="text-sm text-emerald-700 mt-1">The checks below found no differences in the records currently loaded. This is not a bank reconciliation or an audit.</p></div> : <div className="rounded-lg border border-amber-200 bg-amber-50 p-4"><p className="font-semibold text-amber-900">{reconciliation.length} item(s) need review</p><p className="text-sm text-amber-800 mt-1">No records have been changed. Review each item against your original payment evidence before making any correction.</p></div>}
+        {!dataLoadError && reconciliation.length > 0 && <div className="divide-y divide-slate-100">{reconciliation.map(issue => <div key={issue.id} className="py-3"><div className="flex flex-wrap justify-between gap-2"><div><p className="text-sm font-semibold text-slate-800">{issue.area} · {issue.person}</p><p className="text-xs text-slate-500 mt-1">{issue.detail}</p></div><span className="text-xs font-semibold text-amber-700">Review required</span></div><div className="grid grid-cols-2 gap-3 mt-2 text-xs"><p className="text-slate-500">Expected <strong className="block text-slate-800 text-sm">{money(issue.expected)}</strong></p><p className="text-slate-500">Recorded <strong className="block text-slate-800 text-sm">{money(issue.recorded)}</strong></p></div></div>)}</div>}
+        <p className="text-xs text-slate-400">Scope: current loan-cycle balances and repayments, repayment principal/interest allocation, and funded investor agreement payment limits. Does not compare your bank balance or cash-in-hand.</p>
       </section>
       <section className="space-y-3">
         <div><h2 className="font-bold text-gray-800">Business overview</h2><p className="text-xs text-gray-500">Your recorded cash position and the main sources and uses of funds.</p></div>
