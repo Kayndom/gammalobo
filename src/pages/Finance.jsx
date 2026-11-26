@@ -244,13 +244,13 @@ export default function Finance() {
       </div>
       {message && <p className="p-3 rounded-xl bg-green-50 text-green-700 text-sm">{message}</p>}
       {error && <p className="p-3 rounded-xl bg-red-50 text-red-700 text-sm">{error}</p>}
-      {showCapitalForm && <form onSubmit={addCapital} className="bg-white rounded-2xl border p-5 grid sm:grid-cols-3 gap-3">
+      {showCapitalForm && <form onSubmit={addCapital} className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 shadow-sm">
         <h2 className="sm:col-span-3 font-bold">Record owner capital injection</h2>
         <input required type="text" inputMode="decimal" placeholder="Amount (₦)" className="border rounded-lg p-2" value={capitalForm.amount} onChange={e => setCapitalForm({ ...capitalForm, amount: formatAmountInput(e.target.value) })} />
         <input placeholder="Note (optional)" className="border rounded-lg p-2" value={capitalForm.note} onChange={e => setCapitalForm({ ...capitalForm, note: e.target.value })} />
-        <button disabled={saving} className="rounded-lg bg-slate-800 text-white p-2">{saving ? 'Saving…' : 'Save capital injection'}</button>
+        <button disabled={saving} className="min-h-10 rounded-lg bg-slate-800 text-white px-4 py-2 font-semibold hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2">{saving ? 'Saving…' : 'Save capital injection'}</button>
       </form>}
-      {showWithdrawalForm && <form onSubmit={addWithdrawal} className="bg-white rounded-2xl border p-5 grid sm:grid-cols-4 gap-3">
+      {showWithdrawalForm && <form onSubmit={addWithdrawal} className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 shadow-sm">
         <h2 className="sm:col-span-4 font-bold">Record withdrawal or expense</h2>
         <select className="border rounded-lg p-2" value={withdrawalForm.withdrawal_type} onChange={e => setWithdrawalForm({ ...withdrawalForm, withdrawal_type: e.target.value })}>
           <option value="earnings">Monthly earnings (owner pay)</option><option value="bonus">Bonus withdrawal</option><option value="expense">Business expense</option><option value="profit_to_capital">Move profit to capital (non-cash)</option>
