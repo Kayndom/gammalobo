@@ -259,7 +259,7 @@ export default function Finance() {
         <input placeholder="Reason / note" className="border rounded-lg p-2" value={withdrawalForm.note} onChange={e => setWithdrawalForm({ ...withdrawalForm, note: e.target.value })} />
         <button disabled={saving} className="rounded-lg bg-slate-800 text-white p-2">{saving ? 'Saving…' : 'Record transaction'}</button>
       </form>}
-      <section id="monthly-financial-report" className="bg-white rounded-lg border border-slate-200 p-5 space-y-4 shadow-sm">
+      <section id="monthly-financial-report" className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 space-y-4 shadow-sm">
         <div className="flex flex-wrap justify-between items-end gap-3">
           <div><h2 className="font-bold text-gray-800">Monthly financial performance report</h2><p className="text-sm text-gray-500">A date-based summary of recorded business activity. Select any month to review or print.</p></div>
           <div className="flex flex-wrap gap-2 items-center print:hidden">
@@ -273,7 +273,7 @@ export default function Finance() {
         </div>
         <p className="text-xs text-gray-500">This report uses transaction dates and recorded allocations. Capital received, investor funding, loan disbursements and borrower principal repayments are cash movements, not operating profit. It is a management summary, not an audited or statutory financial statement.</p>
       </section>
-      <section className="bg-white rounded-lg border border-slate-200 p-5 space-y-4 shadow-sm">
+      <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 space-y-4 shadow-sm">
         <div className="flex flex-wrap justify-between items-start gap-3">
           <div><h2 className="font-bold text-slate-800">Financial reconciliation</h2><p className="text-sm text-gray-500 mt-1">Read-only checks of loan balances, repayment allocations and investor payment limits.</p></div>
           <button onClick={load} className="px-3 py-2 rounded-lg border text-sm">Run checks again</button>
@@ -285,22 +285,22 @@ export default function Finance() {
       <section className="space-y-3">
         <div><h2 className="font-bold text-gray-800">Business overview</h2><p className="text-xs text-gray-500">Your recorded cash position and the main sources and uses of funds.</p></div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {cards.slice(0, 5).map(([label, value, description]) => <div key={label} className="bg-white rounded-2xl border p-4"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
+          {cards.slice(0, 5).map(([label, value, description]) => <div key={label} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
         </div>
       </section>
       <section className="space-y-3">
         <div><h2 className="font-bold text-gray-800">Lending performance</h2><p className="text-xs text-gray-500">Cash actually collected from borrowers and money still owed on active loans.</p></div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {cards.slice(5, 8).map(([label, value, description]) => <div key={label} className="bg-white rounded-2xl border p-4"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
+          {cards.slice(5, 8).map(([label, value, description]) => <div key={label} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
         </div>
       </section>
       <section className="space-y-3">
         <div><h2 className="font-bold text-gray-800">Investor obligations and business costs</h2><p className="text-xs text-gray-500">Amounts owed to investors, interest paid, expenses and owner withdrawals.</p></div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {cards.slice(8).map(([label, value, description]) => <div key={label} className="bg-white rounded-2xl border p-4"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
+          {cards.slice(8).map(([label, value, description]) => <div key={label} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
         </div>
       </section>
-      <section className="bg-white rounded-2xl border p-5 space-y-2">
+      <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 space-y-2 shadow-sm">
         <h2 className="font-bold text-gray-800">Accounting interpretation</h2>
         <p className="text-sm text-gray-600">Investor principal is a repayable liability, not revenue. Owner capital is funding, not profit. Principal returned to investors reduces cash and the liability; investor interest and operating expenses are costs. Accrued but unpaid investor interest is shown separately from interest already paid.</p>
         <p className="text-sm text-gray-600">Moving profit to capital is an internal reclassification and is not treated as a cash outflow. Earnings and bonus withdrawals and expenses are cash outflows.</p>
@@ -308,7 +308,7 @@ export default function Finance() {
         <p className="text-sm text-gray-600">Cash-basis operating profit is collected loan interest less investor interest actually paid and recorded operating expenses. It is not an accrual-basis statutory profit figure and does not include uncollected loan interest.</p>
         <p className="text-sm text-gray-600">Net cash movement is an estimate from saved transactions, not a verified bank balance. Reconcile it against bank statements. Loan disbursement logs now record principal as cash paid out.</p>
       </section>
-      <section className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
+      <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 shadow-sm">
         <h2 className="font-bold text-gray-800 mb-3">Investor cash movements</h2>
         <div className="grid sm:grid-cols-3 gap-3 text-sm">
           <div><p className="text-gray-500">Capital received</p><strong>{money(stats.investorFundingReceived)}</strong></div>
@@ -318,7 +318,7 @@ export default function Finance() {
         </div>
         <a href="/investors" className="inline-block mt-4 text-sm font-semibold text-blue-700">Manage investors →</a>
       </section>
-      <section className="bg-white rounded-lg border border-slate-200 p-5 space-y-4 shadow-sm">
+      <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 space-y-4 shadow-sm">
         <div><h2 className="font-bold text-slate-800">Financial transaction history</h2><p className="text-sm text-gray-500">Search and trace recorded cash movements across lending, investors and business expenses.</p></div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
           <input value={ledgerSearch} onChange={e=>setLedgerSearch(e.target.value)} placeholder="Search person, type or note" className="border rounded-lg p-2 text-sm"/>
@@ -331,12 +331,12 @@ export default function Finance() {
         {selectedTransactionId && (() => { const row = transactionLedger.find(item => item.id === selectedTransactionId); if (!row) return null; return <div className="fixed inset-0 z-[60] bg-slate-950/55 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-0 sm:p-5" onClick={() => setSelectedTransactionId(null)}><section role="dialog" aria-modal="true" aria-label="Transaction details" onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-2xl rounded-t-2xl sm:rounded-xl shadow-2xl overflow-y-auto p-5 sm:p-7 space-y-5" style={{ maxHeight: '94dvh' }}><div className="flex justify-between items-start gap-3 border-b border-slate-200 pb-4"><div><p className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Read-only transaction record</p><h3 className="font-bold text-xl text-slate-900 mt-1">{row.type}</h3></div><button type="button" onClick={() => setSelectedTransactionId(null)} aria-label="Close transaction details" className="w-9 h-9 rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">×</button></div><div className="grid sm:grid-cols-2 gap-3 text-sm"><div className="rounded-lg bg-slate-50 border border-slate-200 p-3"><p className="text-xs text-slate-500">Amount</p><p className="font-bold text-xl tabular-nums text-slate-900">{money(row.amount)}</p></div><div className="rounded-lg bg-slate-50 border border-slate-200 p-3"><p className="text-xs text-slate-500">Date</p><p className="font-semibold mt-1">{new Date(row.date).toLocaleString("en-NG")}</p></div><div><p className="text-xs text-slate-500">Direction</p><p className="font-semibold">{row.direction}</p></div><div><p className="text-xs text-slate-500">Person / account</p><p className="font-semibold">{row.party}</p></div><div><p className="text-xs text-slate-500">Record type</p><p className="font-semibold">{row.source}</p></div><div><p className="text-xs text-slate-500">Record reference</p><p className="font-mono text-xs break-all">{row.sourceId || row.reference}</p></div></div><div className="rounded-lg border border-slate-200 p-4"><p className="text-xs text-slate-500 mb-1">Description</p><p className="text-sm">{row.detail}</p>{(row.extra || []).map(([label,value])=><div key={label} className="flex flex-wrap justify-between gap-2 border-t border-slate-100 mt-3 pt-3 text-sm"><span className="text-slate-500">{label}</span><strong className="text-right break-all">{value}</strong></div>)}</div>{row.relatedHref && <a href={row.relatedHref} className="inline-flex text-sm font-semibold text-slate-800 underline">{row.relatedLabel || "Open related records"} →</a>}<p className="text-xs text-slate-500">This is a read-only view of the saved record. No financial data has been changed.</p></section></div> })()}
         <p className="text-xs text-gray-500">This history displays recorded transactions only. It does not create, edit or delete ledger entries. Accruals are not cash transactions and are excluded from this cash-movement history.</p>
       </section>
-      <section className="bg-white rounded-2xl border p-5">
+      <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 shadow-sm">
         <h2 className="font-bold text-gray-800 mb-3">Recent capital injections</h2>
         {injections.slice(0, 8).map((item, index) => <div key={item.id || index} className="flex justify-between border-b py-2 text-sm"><span>{item.note || 'Owner capital'} · {item.injected_at ? new Date(item.injected_at).toLocaleDateString('en-NG') : ''}</span><strong>{money(item.amount)}</strong></div>)}
         {!injections.length && <p className="text-sm text-gray-400">No capital injections recorded.</p>}
       </section>
-      <section className="bg-white rounded-2xl border p-5">
+      <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 shadow-sm">
         <h2 className="font-bold text-gray-800 mb-3">Recent withdrawals and expenses</h2>
         {withdrawals.slice(0, 8).map((item, index) => <div key={item.id || index} className="flex justify-between gap-3 border-b py-2 text-sm"><span>{item.withdrawal_type} · {item.note || 'No note'} · {item.withdrawn_at ? new Date(item.withdrawn_at).toLocaleDateString('en-NG') : ''}</span><strong>{money(item.amount)}</strong></div>)}
         {!withdrawals.length && <p className="text-sm text-gray-400">No withdrawals or expenses recorded.</p>}
