@@ -121,6 +121,7 @@ export default function Applications() {
   const [showNewLink, setShowNewLink] = useState(false)
   const [copiedLink, setCopiedLink] = useState('')
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [customRate, setCustomRate] = useState('')
   const [customDuration, setCustomDuration] = useState('')
   const [viewApp, setViewApp] = useState(null)
@@ -321,6 +322,21 @@ export default function Applications() {
               onChange={(e) => setSearch(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            <div className="flex gap-2 mt-4 overflow-x-auto pb-1">
+              {[
+                { value: 'all', label: 'All', count: applications.length },
+                { value: 'pending_loanee', label: 'Awaiting applicant', count: applications.filter(a => a.status === 'pending_loanee').length },
+                { value: 'pending_guarantor', label: 'Awaiting guarantor', count: applications.filter(a => a.status === 'pending_guarantor').length },
+                { value: 'pending_review', label: 'Review', count: applications.filter(a => a.status === 'pending_review').length },
+                { value: 'approved', label: 'Approved', count: applications.filter(a => a.status === 'approved').length },
+                { value: 'rejected', label: 'Rejected', count: applications.filter(a => a.status === 'rejected').length },
+                { value: 'cancelled', label: 'Cancelled', count: applications.filter(a => a.status === 'cancelled').length },
+              ].map(tab => (
+                <button key={tab.value} type="button" onClick={() => setStatusFilter(tab.value)} className={`whitespace-nowrap px-3 py-2 rounded-md text-xs font-semibold border transition ${statusFilter === tab.value ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                  {tab.label} <span className={statusFilter === tab.value ? 'text-slate-300' : 'text-slate-400'}>{tab.count}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {loading ? (
@@ -329,10 +345,10 @@ export default function Applications() {
             <div className="p-6 text-center text-gray-500 text-sm">No applications yet</div>
           ) : (
             <div className="divide-y">
-              {applications.filter(app =>
+              {applications.filter(app => (statusFilter === 'all' || app.status === statusFilter) && (
                 app.applicants?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
                 app.applicants?.phone?.includes(search)
-              ).map((app) => (
+              )).map((app) => (
                 <div key={app.id} className="p-6">
                   <div className="flex justify-between items-start">
                     <div className="space-y-1">
