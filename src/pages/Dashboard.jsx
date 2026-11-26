@@ -97,13 +97,13 @@ export default function Dashboard() {
         ) : (
           <>
             {overdueList.length > 0 && (
-              <div className="rounded-lg p-5 mb-6 border border-red-200 bg-red-50">
+              <div className="rounded-xl p-4 sm:p-5 mb-6 border border-red-200/80 bg-red-50/70">
                 <h2 className="text-sm font-bold text-red-700 mb-3 flex items-center gap-2">
                   <span>⚠️</span> Overdue Loans ({overdueList.length})
                 </h2>
                 <div className="space-y-2">
                   {overdueList.map(loan => (
-                    <div key={loan.id} className="flex justify-between items-center bg-white rounded-xl p-3 shadow-sm">
+                    <div key={loan.id} className="flex justify-between items-center bg-white border border-red-100 rounded-lg p-3 sm:p-4">
                       <div>
                         <p className="text-sm font-semibold text-gray-800">{loan.applicants?.full_name}</p>
                         <p className="text-xs text-gray-400">
@@ -121,9 +121,9 @@ export default function Dashboard() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 mb-7">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
               {statCards.map((card, i) => (
-                <div key={i} className={`rounded-lg border p-5 shadow-sm ${card.tone === 'red' ? 'border-red-200 bg-red-50' : card.tone === 'blue' ? 'border-slate-300 bg-slate-800 text-white' : card.tone === 'slate' ? 'border-slate-200 bg-slate-100' : 'border-slate-200 bg-white'}`}>
+                <div key={i} className={`rounded-xl border p-5 sm:p-6 shadow-sm ${card.tone === 'red' ? 'border-red-200 bg-red-50' : card.tone === 'blue' ? 'border-slate-300 bg-slate-800 text-white' : card.tone === 'slate' ? 'border-slate-200 bg-slate-100' : 'border-slate-200 bg-white'}`}>
                   <p className={`text-xs font-semibold ${card.tone === 'blue' ? 'text-slate-300' : card.tone === 'red' ? 'text-red-700' : 'text-slate-500'}`}>{card.label}</p>
                   <p className={`text-2xl font-bold mt-2 tabular-nums ${card.tone === 'red' ? 'text-red-700' : card.tone === 'blue' ? 'text-white' : 'text-slate-800'}`}>{card.value}</p>
                   <p className={`text-xs mt-2 ${card.tone === 'blue' ? 'text-slate-300' : 'text-slate-500'}`}>{card.note}</p>
@@ -131,8 +131,8 @@ export default function Dashboard() {
               ))}
             </div>
 
-            <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-              <div className="p-5 border-b flex items-center gap-3">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-5 sm:px-6 py-4 border-b border-slate-200 flex items-center gap-3">
                 <div className="w-1 h-5 rounded-full bg-slate-500"></div>
                 <h2 className="text-sm font-bold text-gray-700">Recent Loans</h2>
               </div>
@@ -144,7 +144,7 @@ export default function Dashboard() {
               ) : (
                 <div className="divide-y">
                   {recentLoans.map(loan => (
-                    <div key={loan.id} className="p-4 flex justify-between items-center hover:bg-gray-50 transition">
+                    <div key={loan.id} className="px-4 sm:px-6 py-4 flex flex-wrap gap-3 justify-between items-center hover:bg-slate-50 transition">
                       <div>
                         <p className="font-semibold text-gray-800 text-sm">{loan.applicants?.full_name}</p>
                         <p className="text-xs text-gray-400 mt-0.5">
