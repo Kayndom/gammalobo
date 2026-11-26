@@ -73,7 +73,7 @@ export default function AuditTrail() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[['Events loaded', rows.length], ['Records created', rows.filter(r => r.action === 'INSERT').length], ['Records updated', rows.filter(r => r.action === 'UPDATE').length], ['Records removed', rows.filter(r => r.action === 'DELETE').length]].map(([name, value]) => <div key={name} className="bg-white border border-slate-200 rounded-xl p-4"><p className="text-xs text-slate-500">{name}</p><p className="text-xl font-black text-slate-900 mt-1">{value}</p></div>)}
       </div>
-      <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row gap-3">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-3 shadow-sm">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search activity, person, record or changed field…" className="flex-1 min-w-0 border border-slate-300 rounded-lg px-3 py-2 text-sm"/>
         <select value={action} onChange={e => setAction(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm"><option value="all">All activity</option><option value="INSERT">Records created</option><option value="UPDATE">Records updated</option><option value="DELETE">Records removed</option></select>
       </div>
