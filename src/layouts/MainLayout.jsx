@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 export default function MainLayout({ children }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const [notificationsOpen, setNotificationsOpen] = useState(false)
@@ -57,13 +58,15 @@ export default function MainLayout({ children }) {
     { to: '/audit', label: 'Audit trail', icon: '08' },
   ]
 
+  const activePage = navLinks.find(link => location.pathname === link.to)
+
   return (
     <div className="min-h-screen flex" style={{ background: 'var(--page-bg)' }}>
       {sidebarOpen && (
         <button
           type="button"
           aria-label="Close navigation"
-          className="fixed inset-0 bg-slate-950/50 z-20 lg:hidden"
+          className="fixed inset-0 bg-slate-950/55 backdrop-blur-[2px] z-20 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -71,7 +74,7 @@ export default function MainLayout({ children }) {
       <aside className={`
         fixed lg:sticky inset-y-0 left-0 z-30 w-[250px] shrink-0 flex flex-col
         bg-[var(--sidebar-bg)] text-white
-        transform transition-transform duration-200
+        transform transition-transform duration-300 ease-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `} style={{ height: '100dvh' }}>
         <div className="h-[76px] px-6 flex items-center border-b border-white/10">
@@ -124,9 +127,9 @@ export default function MainLayout({ children }) {
 
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="sticky top-0 z-20 h-14 px-4 sm:px-6 flex items-center gap-3 bg-white border-b border-[var(--border)]">
-          <button type="button" onClick={() => setSidebarOpen(true)} className="w-9 h-9 border border-[var(--border)] rounded-md text-slate-700 lg:hidden" aria-label="Open menu">☰</button>
+          <button type="button" onClick={() => setSidebarOpen(true)} className="w-9 h-9 border border-[var(--border)] rounded-md text-slate-700 hover:bg-slate-50 transition-colors lg:hidden" aria-label="Open menu">☰</button>
           <div className="font-bold tracking-[.12em] text-sm text-slate-800 lg:hidden">REGNUM <span className="font-normal tracking-normal text-slate-500">Ventures</span></div>
-          <div className="hidden lg:block text-xs text-slate-500">Business workspace</div>
+          <div className="hidden lg:flex flex-col justify-center min-w-0"><span className="text-sm font-semibold text-slate-800">{activePage?.label || 'Business workspace'}</span><span className="text-[11px] text-slate-400">REGNUM VENTURES · ADMIN WORKSPACE</span></div>
           <div className="ml-auto relative">
             <button type="button" onClick={() => setNotificationsOpen(v => !v)} aria-label={'Notifications, ' + notifications.length + ' items'} aria-expanded={notificationsOpen} className="relative w-10 h-10 flex items-center justify-center rounded-md border border-[var(--border)] text-slate-700 hover:bg-slate-50">
               <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
