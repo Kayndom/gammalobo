@@ -30,7 +30,7 @@ function ApplicationDetail({ app, onClose }) {
         <div className="p-5 space-y-5">
           <div>
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Loan Info</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="bg-gray-50 rounded-lg p-3">
                 <p className="text-xs text-gray-400">Amount Requested</p>
                 <p className="font-bold text-gray-800">₦{Number(app.loan_amount_requested).toLocaleString()}</p>
@@ -252,7 +252,7 @@ export default function Applications() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-5 sm:p-6 mb-5">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 sm:p-6 mb-5">
           <div className="mb-4"><h2 className="text-sm font-bold text-slate-800">Create an application link</h2><p className="text-xs text-slate-500 mt-1">Set the requested amount and any agreement-specific terms. Leave custom terms blank to use your defaults.</p></div>
           <div className="space-y-3">
             <input
@@ -312,7 +312,7 @@ export default function Applications() {
           )}
         </div>
 
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-5 sm:p-6 border-b border-slate-200">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">All Applications</h2>
             <input
