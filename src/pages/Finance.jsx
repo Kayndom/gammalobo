@@ -208,13 +208,10 @@ export default function Finance() {
     const investorInterestOutstanding = Math.max(0, investorInterestAccrued - investorInterestPaid)
     const realisedLoanInterest = instalments.reduce((total, row) => total + Number(lifecycleAllocations.get(row.id)?.interest || 0), 0)
     const currentPrincipalOutstanding = activeLoans.reduce((total, loan) => {
-      const lifetimePayments = instalments.filter(row => row.loan_id === loan.id)
-      const principalRecovered = lifetimePayments.reduce((sum, row) => sum + Number(lifecycleAllocations.get(row.id)?.principal || 0), 0)
-      const originalDisbursement = [...disbursements]
-        .filter(row => row.loan_id === loan.id)
-        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))[0]
-      const originalPrincipal = Number(originalDisbursement?.amount || (Number(loan.rollover_count || 0) === 0 ? loan.principal : 0) || 0)
-      return total + Math.max(0, originalPrincipal - principalRecovered)
+      const cycle = Number(loan.rollover_count || 0)
+      const cyclePayments = instalments.filter(row => row.loan_id === loan.id && Number(row.rollover_number || 0) === cycle)
+      const principalPaid = cyclePayments.reduce((sum, row) => sum + Number(repaymentAllocations.get(row.id)?.principal || 0), 0)
+      return total + Math.max(0, Number(loan.principal || 0) - principalPaid)
     }, 0)
     const currentCycleInterestOutstanding = activeLoans.reduce((total, loan) => {
       const cycle = Number(loan.rollover_count || 0)
@@ -332,7 +329,7 @@ export default function Finance() {
 
   const primaryCards = [
     ['Total loan disbursed', money(stats.loanCashDisbursed), 'Cumulative cash actually released to borrowers; rollovers excluded'],
-    ['Outstanding principal', money(stats.currentPrincipalOutstanding), 'Principal still outstanding across active loan cycles'],
+    ['Outstanding principal', money(stats.currentPrincipalOutstanding), 'Current-cycle principal still owed; includes any balance capitalised at rollover'],
     ['Total repayments received', money(stats.borrowerCashReceived), 'All recorded borrower payments, including principal and interest'],
     ['Total interest received', money(stats.realisedLoanInterest), 'Lifetime interest collected across original loans and every rollover'],
     ['Outstanding loan balance', money(stats.borrowerReceivables), stats.activeLoanCount + ' active or overdue loans; includes current-cycle interest'],
