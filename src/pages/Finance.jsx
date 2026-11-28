@@ -21,6 +21,7 @@ export default function Finance() {
   const [investorAccruals, setInvestorAccruals] = useState([])
   const [instalments, setInstalments] = useState([])
   const [disbursements, setDisbursements] = useState([])
+  const [rollovers, setRollovers] = useState([])
   const [dataLoadError, setDataLoadError] = useState('')
   const [showCapitalForm, setShowCapitalForm] = useState(false)
   const [showWithdrawalForm, setShowWithdrawalForm] = useState(false)
@@ -44,7 +45,8 @@ export default function Finance() {
       supabase.from('investor_payments').select('id,investment_id,amount,payment_type,payment_date,investments(investors(full_name))'),
       supabase.from('investor_accruals').select('investment_id,amount'),
       supabase.from('instalments').select('id,loan_id,rollover_number,amount_paid,allocated_principal,allocated_interest,payment_date,loans(applicants(full_name))'),
-      supabase.from('loan_logs').select('id,loan_id,amount,created_at,description,loans(applicants(full_name))').eq('activity_type', 'disbursement')
+      supabase.from('loan_logs').select('id,loan_id,amount,created_at,description,loans(applicants(full_name))').eq('activity_type', 'disbursement'),
+      supabase.from('rollovers').select('loan_id,rollover_number,new_principal,new_interest_amount,rolled_over_at')
     ])
     const failed = results.find(result => result.error)
     if (failed) { setError(failed.error.message); setDataLoadError(failed.error.message) } else setDataLoadError('')
@@ -56,6 +58,7 @@ export default function Finance() {
     setInvestorAccruals(results[5].data || [])
     setInstalments(results[6].data || [])
     setDisbursements(results[7].data || [])
+    setRollovers(results[8].data || [])
     setLoading(false)
   }
 
@@ -95,6 +98,61 @@ export default function Finance() {
     }
   }
 
+  // Reconstruct principal-first allocations for legacy repayments created before
+  // explicit allocation fields existed. Newer records continue to use their saved allocations.
+  const repaymentAllocations = useMemo(() => {
+    const result = new Map()
+    const groups = new Map()
+    instalments.forEach(row => {
+      const key = `${row.loan_id}:${Number(row.rollover_number || 0)}`
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key).push(row)
+    })
+    groups.forEach((rows, key) => {
+      const [loanId, cycleText] = key.split(':')
+      const cycle = Number(cycleText)
+      const sorted = [...rows].sort((a, b) => {
+        const dateDiff = new Date(a.payment_date || 0) - new Date(b.payment_date || 0)
+        return dateDiff || String(a.id).localeCompare(String(b.id))
+      })
+      const hasCompleteSavedAllocation = sorted.every(row =>
+        Math.abs(Number(row.amount_paid || 0) -
+          Number(row.allocated_principal || 0) - Number(row.allocated_interest || 0)) < 0.02
+      )
+      if (hasCompleteSavedAllocation) {
+        sorted.forEach(row => result.set(row.id, {
+          principal: Number(row.allocated_principal || 0),
+          interest: Number(row.allocated_interest || 0)
+        }))
+        return
+      }
+      const rollover = rollovers.find(row => row.loan_id === loanId && Number(row.rollover_number) === cycle)
+      const originalDisbursement = cycle === 0
+        ? [...disbursements].filter(row => row.loan_id === loanId).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))[0]
+        : null
+      const currentLoan = loans.find(row => row.id === loanId)
+      const cyclePrincipal = cycle > 0
+        ? Number(rollover?.new_principal || 0)
+        : Number(originalDisbursement?.amount || (Number(currentLoan?.rollover_count || 0) === 0 ? currentLoan?.principal : 0) || 0)
+      if (!(cyclePrincipal > 0)) {
+        sorted.forEach(row => result.set(row.id, {
+          principal: Number(row.allocated_principal || 0),
+          interest: Number(row.allocated_interest || 0)
+        }))
+        return
+      }
+      let principalRemaining = cyclePrincipal
+      sorted.forEach(row => {
+        const paid = Number(row.amount_paid || 0)
+        const principal = Math.min(paid, principalRemaining)
+        const interest = Math.max(0, paid - principal)
+        principalRemaining = Math.max(0, principalRemaining - principal)
+        result.set(row.id, { principal, interest })
+      })
+    })
+    return result
+  }, [instalments, loans, disbursements, rollovers])
+
   const stats = useMemo(() => {
     const sum = (rows, field = 'amount') => rows.reduce((total, row) => total + Number(row[field] || 0), 0)
     const activeLoans = loans.filter(loan => ['active', 'overdue'].includes(loan.status))
@@ -109,7 +167,20 @@ export default function Finance() {
     const investorInterestPaid = sum(investorPayments.filter(item => item.payment_type === 'interest'))
     const investorInterestAccrued = sum(investorAccruals)
     const investorInterestOutstanding = Math.max(0, investorInterestAccrued - investorInterestPaid)
-    const realisedLoanInterest = sum(instalments, 'allocated_interest')
+    const realisedLoanInterest = instalments.reduce((total, row) => total + Number(repaymentAllocations.get(row.id)?.interest || 0), 0)
+    const currentPrincipalOutstanding = activeLoans.reduce((total, loan) => {
+      const cycle = Number(loan.rollover_count || 0)
+      const cyclePayments = instalments.filter(row => row.loan_id === loan.id && Number(row.rollover_number || 0) === cycle)
+      const principalPaid = cyclePayments.reduce((sum, row) => sum + Number(repaymentAllocations.get(row.id)?.principal || 0), 0)
+      return total + Math.max(0, Number(loan.principal || 0) - principalPaid)
+    }, 0)
+    const currentCycleInterestOutstanding = activeLoans.reduce((total, loan) => {
+      const cycle = Number(loan.rollover_count || 0)
+      const interestPaid = instalments
+        .filter(row => row.loan_id === loan.id && Number(row.rollover_number || 0) === cycle)
+        .reduce((sum, row) => sum + Number(repaymentAllocations.get(row.id)?.interest || 0), 0)
+      return total + Math.max(0, Number(loan.interest_amount || 0) - interestPaid)
+    }, 0)
     const cashBasisNetInterest = realisedLoanInterest - investorInterestPaid
     const cashBasisOperatingProfit = cashBasisNetInterest - operatingExpenses
     const investorPrincipalOutstanding = Math.max(0, investorFundingReceived - investorPrincipalReturned)
@@ -120,11 +191,12 @@ export default function Finance() {
       operatingExpenses, ownerWithdrawals, profitMovedToCapital,
       investorPrincipalReturned, investorInterestPaid, investorPrincipalOutstanding,
       investorInterestAccrued, investorInterestOutstanding,
-      realisedLoanInterest, cashBasisNetInterest, cashBasisOperatingProfit,
+      realisedLoanInterest, currentPrincipalOutstanding, currentCycleInterestOutstanding,
+      cashBasisNetInterest, cashBasisOperatingProfit,
       cashMovementEstimate, borrowerReceivables: sum(activeLoans, 'outstanding_balance'),
       activeLoanCount: activeLoans.length, cashOutflows
     }
-  }, [loans, injections, withdrawals, investments, investorPayments, investorAccruals, instalments, disbursements])
+  }, [loans, injections, withdrawals, investments, investorPayments, investorAccruals, instalments, disbursements, repaymentAllocations])
 
   if (loading) return <MainLayout><p className="text-gray-500">Loading financial records…</p></MainLayout>
 
@@ -141,7 +213,7 @@ export default function Finance() {
   const monthlyInvestorFunding = sumForReport(investments.filter(row => row.funded_at && row.status !== 'cancelled' && inMonth(row.funded_at)), 'principal')
   const monthlyDisbursed = sumForReport(disbursements.filter(row => inMonth(row.created_at)))
   const monthlyRepayments = sumForReport(instalments.filter(row => inMonth(row.payment_date)), 'amount_paid')
-  const monthlyLoanInterest = sumForReport(instalments.filter(row => inMonth(row.payment_date)), 'allocated_interest')
+  const monthlyLoanInterest = instalments.filter(row => inMonth(row.payment_date)).reduce((total, row) => total + Number(repaymentAllocations.get(row.id)?.interest || 0), 0)
   const monthlyInvestorInterestPaid = sumForReport(investorPayments.filter(row => row.payment_type === 'interest' && inMonth(row.payment_date)))
   const monthlyExpenses = sumForReport(withdrawals.filter(row => row.withdrawal_type === 'expense' && inMonth(row.withdrawn_at)))
   const monthlyOwnerWithdrawals = sumForReport(withdrawals.filter(row => ['earnings', 'bonus'].includes(row.withdrawal_type) && inMonth(row.withdrawn_at)))
@@ -215,20 +287,22 @@ export default function Finance() {
     return issues
   })()
 
-  const cards = [
-    ['Recorded net cash movement', money(stats.cashMovementEstimate), 'Estimated from recorded cash transactions; reconcile with bank balance'],
-    ['Owner capital injected', money(stats.ownerCapital), 'Owner funding, not revenue'],
-    ['Investor capital received', money(stats.investorFundingReceived), 'External funding and repayable liability'],
-    ['Loan principal disbursed', money(stats.loanCashDisbursed), 'Actual principal cash outflow recorded at disbursement'],
-    ['Borrower repayments received', money(stats.borrowerCashReceived), 'All recorded instalments; not all profit'],
-    ['Loan interest actually collected', money(stats.realisedLoanInterest), 'Principal-first allocation from recorded repayments'],
-    ['Cash-basis profit after investor interest and expenses', money(stats.cashBasisOperatingProfit), 'Collected loan interest less investor interest paid and operating expenses'],
-    ['Outstanding borrower receivables', money(stats.borrowerReceivables), stats.activeLoanCount + ' active or overdue loans'],
-    ['Investor principal outstanding', money(stats.investorPrincipalOutstanding), 'Investor funding less principal repaid'],
+  const primaryCards = [
+    ['Total loan disbursed', money(stats.loanCashDisbursed), 'Cumulative cash actually released to borrowers; rollovers excluded'],
+    ['Outstanding principal', money(stats.currentPrincipalOutstanding), 'Principal still outstanding across active loan cycles'],
+    ['Total repayments received', money(stats.borrowerCashReceived), 'All recorded borrower payments, including principal and interest'],
+    ['Total interest received', money(stats.realisedLoanInterest), 'Lifetime interest collected across original loans and every rollover'],
+    ['Outstanding loan balance', money(stats.borrowerReceivables), stats.activeLoanCount + ' active or overdue loans; includes current-cycle interest'],
+    ['Net realised operating profit', money(stats.cashBasisOperatingProfit), 'Interest collected less investor interest paid and recorded expenses']
+  ]
+  const secondaryCards = [
+    ['Current-cycle interest outstanding', money(stats.currentCycleInterestOutstanding), 'Unpaid interest on active loan cycles; rolled-over balances are carried into the next cycle'],
+    ['Investor principal outstanding', money(stats.investorPrincipalOutstanding), 'Investor funding less principal returned'],
     ['Investor interest accrued but unpaid', money(stats.investorInterestOutstanding), 'Accrued investor returns less interest already paid'],
     ['Investor interest paid', money(stats.investorInterestPaid), 'Recorded interest payouts'],
-    ['Operating expenses', money(stats.operatingExpenses), 'Expenses recorded'],
-    ['Owner withdrawals', money(stats.ownerWithdrawals), 'Earnings and bonus withdrawals']
+    ['Operating expenses', money(stats.operatingExpenses), 'Business expenses recorded'],
+    ['Owner withdrawals', money(stats.ownerWithdrawals), 'Earnings and bonus withdrawals'],
+    ['Recorded net cash movement', money(stats.cashMovementEstimate), 'Estimated from saved cash transactions; not a verified bank balance']
   ]
 
   return <MainLayout>
@@ -283,40 +357,24 @@ export default function Finance() {
         <p className="text-xs text-slate-400">Scope: current loan-cycle balances and repayments, repayment principal/interest allocation, and funded investor agreement payment limits. Does not compare your bank balance or cash-in-hand.</p>
       </section>
       <section className="space-y-3">
-        <div><h2 className="font-bold text-gray-800">Business overview</h2><p className="text-xs text-gray-500">Your recorded cash position and the main sources and uses of funds.</p></div>
+        <div><h2 className="font-bold text-gray-800">Financial overview</h2><p className="text-xs text-gray-500">The six figures that explain lending volume, money still at risk, collections and realised performance.</p></div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {cards.slice(0, 5).map(([label, value, description]) => <div key={label} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
+          {primaryCards.map(([label, value, description]) => <div key={label} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2 tabular-nums">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
         </div>
       </section>
       <section className="space-y-3">
-        <div><h2 className="font-bold text-gray-800">Lending performance</h2><p className="text-xs text-gray-500">Cash actually collected from borrowers and money still owed on active loans.</p></div>
+        <div><h2 className="font-bold text-gray-800">Other financial positions</h2><p className="text-xs text-gray-500">Investor obligations, operating costs and estimated cash movement.</p></div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {cards.slice(5, 8).map(([label, value, description]) => <div key={label} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
-        </div>
-      </section>
-      <section className="space-y-3">
-        <div><h2 className="font-bold text-gray-800">Investor obligations and business costs</h2><p className="text-xs text-gray-500">Amounts owed to investors, interest paid, expenses and owner withdrawals.</p></div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {cards.slice(8).map(([label, value, description]) => <div key={label} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
+          {secondaryCards.map(([label, value, description]) => <div key={label} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2 tabular-nums">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
         </div>
       </section>
       <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 space-y-2 shadow-sm">
         <h2 className="font-bold text-gray-800">Accounting interpretation</h2>
         <p className="text-sm text-gray-600">Investor principal is a repayable liability, not revenue. Owner capital is funding, not profit. Principal returned to investors reduces cash and the liability; investor interest and operating expenses are costs. Accrued but unpaid investor interest is shown separately from interest already paid.</p>
         <p className="text-sm text-gray-600">Moving profit to capital is an internal reclassification and is not treated as a cash outflow. Earnings and bonus withdrawals and expenses are cash outflows.</p>
-        <p className="text-sm text-gray-600">New repayments are allocated principal-first, then interest, with the rollover cycle recorded separately. This allows the app to show loan interest actually collected. Older instalments without allocation data are not guessed and should be excluded from profit reporting after the fresh reset.</p>
+        <p className="text-sm text-gray-600">Repayments are allocated principal-first, then interest, within each loan cycle. Finance now uses saved allocations where complete and reconstructs older records using the original cycle principal and recorded payment history. This lets lifetime interest include collections from the original loan and every rollover without counting rolled-over interest as cash received.</p>
         <p className="text-sm text-gray-600">Cash-basis operating profit is collected loan interest less investor interest actually paid and recorded operating expenses. It is not an accrual-basis statutory profit figure and does not include uncollected loan interest.</p>
         <p className="text-sm text-gray-600">Net cash movement is an estimate from saved transactions, not a verified bank balance. Reconcile it against bank statements. Loan disbursement logs now record principal as cash paid out.</p>
-      </section>
-      <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 shadow-sm">
-        <h2 className="font-bold text-gray-800 mb-3">Investor cash movements</h2>
-        <div className="grid sm:grid-cols-3 gap-3 text-sm">
-          <div><p className="text-gray-500">Capital received</p><strong>{money(stats.investorFundingReceived)}</strong></div>
-          <div><p className="text-gray-500">Principal returned</p><strong>{money(stats.investorPrincipalReturned)}</strong></div>
-          <div><p className="text-gray-500">Interest accrued but unpaid</p><strong>{money(stats.investorInterestOutstanding)}</strong></div>
-          <div><p className="text-gray-500">Interest paid</p><strong>{money(stats.investorInterestPaid)}</strong></div>
-        </div>
-        <a href="/investors" className="inline-block mt-4 text-sm font-semibold text-blue-700">Manage investors →</a>
       </section>
       <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 space-y-4 shadow-sm">
         <div><h2 className="font-bold text-slate-800">Financial transaction history</h2><p className="text-sm text-gray-500">Search and trace recorded cash movements across lending, investors and business expenses.</p></div>
@@ -330,16 +388,6 @@ export default function Finance() {
         {filteredLedger.length ? <div className="overflow-x-auto"><table className="w-full text-sm min-w-[680px]"><thead><tr className="text-left text-xs text-gray-500 border-b"><th className="py-2 pr-3">Date</th><th className="py-2 pr-3">Transaction</th><th className="py-2 pr-3">Person / account</th><th className="py-2 pr-3">Details</th><th className="py-2 text-right">Amount</th></tr></thead><tbody>{filteredLedger.map(row=><tr key={row.id} className="border-b last:border-0 align-top"><td className="py-3 pr-3 whitespace-nowrap">{new Date(row.date).toLocaleDateString("en-NG")}</td><td className="py-3 pr-3"><button onClick={()=>setSelectedTransactionId(selectedTransactionId===row.id?null:row.id)} className="text-left font-semibold text-blue-700 hover:underline">{row.type}<span className="block text-[11px] text-gray-400 font-normal">{row.direction} · View details</span></button></td><td className="py-3 pr-3">{row.party}</td><td className="py-3 pr-3 text-gray-500 max-w-xs">{row.detail}</td><td className="py-3 text-right font-semibold whitespace-nowrap">{money(row.amount)}</td></tr>)}</tbody></table></div> : <p className="text-sm text-gray-400 py-4">No transactions match these filters.</p>}
         {selectedTransactionId && (() => { const row = transactionLedger.find(item => item.id === selectedTransactionId); if (!row) return null; return <div className="fixed inset-0 z-[60] bg-slate-950/55 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-0 sm:p-5" onClick={() => setSelectedTransactionId(null)}><section role="dialog" aria-modal="true" aria-label="Transaction details" onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-2xl rounded-t-2xl sm:rounded-xl shadow-2xl overflow-y-auto p-5 sm:p-7 space-y-5" style={{ maxHeight: '94dvh' }}><div className="flex justify-between items-start gap-3 border-b border-slate-200 pb-4"><div><p className="text-xs uppercase tracking-wide text-slate-500 font-semibold">Read-only transaction record</p><h3 className="font-bold text-xl text-slate-900 mt-1">{row.type}</h3></div><button type="button" onClick={() => setSelectedTransactionId(null)} aria-label="Close transaction details" className="w-9 h-9 rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">×</button></div><div className="grid sm:grid-cols-2 gap-3 text-sm"><div className="rounded-lg bg-slate-50 border border-slate-200 p-3"><p className="text-xs text-slate-500">Amount</p><p className="font-bold text-xl tabular-nums text-slate-900">{money(row.amount)}</p></div><div className="rounded-lg bg-slate-50 border border-slate-200 p-3"><p className="text-xs text-slate-500">Date</p><p className="font-semibold mt-1">{new Date(row.date).toLocaleString("en-NG")}</p></div><div><p className="text-xs text-slate-500">Direction</p><p className="font-semibold">{row.direction}</p></div><div><p className="text-xs text-slate-500">Person / account</p><p className="font-semibold">{row.party}</p></div><div><p className="text-xs text-slate-500">Record type</p><p className="font-semibold">{row.source}</p></div><div><p className="text-xs text-slate-500">Record reference</p><p className="font-mono text-xs break-all">{row.sourceId || row.reference}</p></div></div><div className="rounded-lg border border-slate-200 p-4"><p className="text-xs text-slate-500 mb-1">Description</p><p className="text-sm">{row.detail}</p>{(row.extra || []).map(([label,value])=><div key={label} className="flex flex-wrap justify-between gap-2 border-t border-slate-100 mt-3 pt-3 text-sm"><span className="text-slate-500">{label}</span><strong className="text-right break-all">{value}</strong></div>)}</div>{row.relatedHref && <a href={row.relatedHref} className="inline-flex text-sm font-semibold text-slate-800 underline">{row.relatedLabel || "Open related records"} →</a>}<p className="text-xs text-slate-500">This is a read-only view of the saved record. No financial data has been changed.</p></section></div> })()}
         <p className="text-xs text-gray-500">This history displays recorded transactions only. It does not create, edit or delete ledger entries. Accruals are not cash transactions and are excluded from this cash-movement history.</p>
-      </section>
-      <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 shadow-sm">
-        <h2 className="font-bold text-gray-800 mb-3">Recent capital injections</h2>
-        {injections.slice(0, 8).map((item, index) => <div key={item.id || index} className="flex justify-between border-b py-2 text-sm"><span>{item.note || 'Owner capital'} · {item.injected_at ? new Date(item.injected_at).toLocaleDateString('en-NG') : ''}</span><strong>{money(item.amount)}</strong></div>)}
-        {!injections.length && <p className="text-sm text-gray-400">No capital injections recorded.</p>}
-      </section>
-      <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 shadow-sm">
-        <h2 className="font-bold text-gray-800 mb-3">Recent withdrawals and expenses</h2>
-        {withdrawals.slice(0, 8).map((item, index) => <div key={item.id || index} className="flex justify-between gap-3 border-b py-2 text-sm"><span>{item.withdrawal_type} · {item.note || 'No note'} · {item.withdrawn_at ? new Date(item.withdrawn_at).toLocaleDateString('en-NG') : ''}</span><strong>{money(item.amount)}</strong></div>)}
-        {!withdrawals.length && <p className="text-sm text-gray-400">No withdrawals or expenses recorded.</p>}
       </section>
     </div>
   </MainLayout>
