@@ -148,7 +148,7 @@ export default function Dashboard() {
                       <div>
                         <p className="font-semibold text-gray-800 text-sm">{loan.applicants?.full_name}</p>
                         <p className="text-xs text-gray-400 mt-0.5">
-                          ₦{Number(loan.principal).toLocaleString()} · Due:{' '}
+                          ₦{Number(loan.principal).toLocaleString()} {Number(loan.rollover_count || 0) > 0 ? 'current rollover capital' : 'original principal'} · Due:{' '}
                           {new Date(loan.due_date).toLocaleDateString('en-NG', {
                             day: 'numeric', month: 'short', year: 'numeric'
                           })}
