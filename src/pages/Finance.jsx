@@ -44,9 +44,9 @@ export default function Finance() {
       supabase.from('investments').select('id,investor_id,principal,status,funded_at,investors(full_name)'),
       supabase.from('investor_payments').select('id,investment_id,amount,payment_type,payment_date,investments(investors(full_name))'),
       supabase.from('investor_accruals').select('investment_id,amount'),
-      supabase.from('instalments').select('id,loan_id,rollover_number,amount_paid,allocated_principal,allocated_interest,payment_date,created_at,loans(applicants(full_name))'),
+      supabase.from('instalments').select('id,loan_id,rollover_number,amount_paid,allocated_principal,allocated_interest,payment_date,loans(applicants(full_name))'),
       supabase.from('loan_logs').select('id,loan_id,amount,created_at,description,loans(applicants(full_name))').eq('activity_type', 'disbursement'),
-      supabase.from('rollovers').select('loan_id,rollover_number,new_principal,new_interest_amount,rolled_over_at,created_at')
+      supabase.from('rollovers').select('loan_id,rollover_number,new_principal,new_interest_amount,rolled_over_at')
     ])
     const failed = results.find(result => result.error)
     if (failed) { setError(failed.error.message); setDataLoadError(failed.error.message) } else setDataLoadError('')
@@ -99,23 +99,17 @@ export default function Finance() {
   }
 
   // Legacy instalments may have rollover_number=0 because the column was added later.
-  // Use record creation timestamps (not the user-entered payment date) to place those
-  // records around a rollover. A payment and rollover can legitimately share a date.
-  // Explicit non-zero cycle numbers on newer records are always authoritative.
+  // Infer their cycle from the recorded payment date and rollover start date.
+  // Explicit non-zero cycle numbers on newer records are authoritative.
   const effectiveRolloverNumber = row => {
     const recordedCycle = Number(row.rollover_number || 0)
     if (recordedCycle > 0) return recordedCycle
 
-    const paymentCreatedAt = row.created_at ? new Date(row.created_at).getTime() : NaN
-    if (!Number.isFinite(paymentCreatedAt)) return 0
-
-    return rollovers
-      .filter(item => {
-        if (item.loan_id !== row.loan_id) return false
-        const rolloverCreatedAt = item.created_at ? new Date(item.created_at).getTime() : NaN
-        return Number.isFinite(rolloverCreatedAt) && rolloverCreatedAt <= paymentCreatedAt
-      })
+    const paymentDate = String(row.payment_date || '').slice(0, 10)
+    const datedCycle = rollovers
+      .filter(item => item.loan_id === row.loan_id && String(item.rolled_over_at || '').slice(0, 10) <= paymentDate)
       .reduce((latest, item) => Math.max(latest, Number(item.rollover_number || 0)), 0)
+    return Math.max(recordedCycle, datedCycle)
   }
 
   // Reconstruct principal-first allocations for legacy repayments created before
