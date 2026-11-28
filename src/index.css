@@ -213,3 +213,36 @@ tbody tr:hover { background-color: #fafbfc; }
     animation: none !important;
   }
 }
+
+
+/* REGNUM persistent night mode */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page-bg: #111a22; --surface: #1b2732; --surface-muted: #202e3a;
+  --text: #e6edf2; --text-muted: #a6b3bf; --border: #344452;
+  --focus: #91aabd; --sidebar-bg: #0d151c;
+}
+:root[data-theme="dark"] body { background: var(--page-bg); color: var(--text); }
+:root[data-theme="dark"] h1, :root[data-theme="dark"] h2, :root[data-theme="dark"] h3,
+:root[data-theme="dark"] h4, :root[data-theme="dark"] .page-title { color: #edf2f6; }
+:root[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+:root[data-theme="dark"] select, :root[data-theme="dark"] textarea {
+  background: #17232d; color: #e6edf2; border-color: #40515f;
+}
+:root[data-theme="dark"] input::placeholder, :root[data-theme="dark"] textarea::placeholder { color: #82919e; }
+:root[data-theme="dark"] th { background: #202d38; color: #b8c5cf; }
+:root[data-theme="dark"] td, :root[data-theme="dark"] th { border-color: var(--border); }
+:root[data-theme="dark"] tbody tr:hover { background: #202d38; }
+:root[data-theme="dark"] .bg-white { background-color: #1b2732 !important; }
+:root[data-theme="dark"] .bg-slate-50, :root[data-theme="dark"] .bg-gray-50 { background-color: #202d38 !important; }
+:root[data-theme="dark"] .bg-slate-100, :root[data-theme="dark"] .bg-gray-100 { background-color: #293844 !important; }
+:root[data-theme="dark"] .text-gray-900, :root[data-theme="dark"] .text-gray-800,
+:root[data-theme="dark"] .text-slate-900, :root[data-theme="dark"] .text-slate-800 { color: #edf2f6 !important; }
+:root[data-theme="dark"] .text-gray-700, :root[data-theme="dark"] .text-slate-700 { color: #d4dde4 !important; }
+:root[data-theme="dark"] .text-gray-600, :root[data-theme="dark"] .text-slate-600,
+:root[data-theme="dark"] .text-gray-500, :root[data-theme="dark"] .text-slate-500 { color: #a6b3bf !important; }
+:root[data-theme="dark"] .border-gray-100, :root[data-theme="dark"] .border-gray-200,
+:root[data-theme="dark"] .border-slate-100, :root[data-theme="dark"] .border-slate-200 { border-color: #344452 !important; }
+:root[data-theme="dark"] [role="dialog"] { background: #18242e !important; color: #e6edf2; }
+:root[data-theme="dark"] [role="dialog"] .bg-white { background-color: #202d38 !important; }
+:root[data-theme="dark"] header.sticky { background: #18242e; }
