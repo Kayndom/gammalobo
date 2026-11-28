@@ -881,6 +881,10 @@ export default function Loans() {
                       <div key={inst.id} className="flex justify-between items-center rounded-xl p-3" style={{ background: '#f8fafc' }}>
                         <div>
                           <p className="text-sm font-semibold text-gray-700">₦{Number(inst.amount_paid).toLocaleString()}</p>
+                          <p className="text-xs text-gray-500">
+                            {Number(inst.rollover_number || 0) > 0 ? `Rollover cycle #${inst.rollover_number}` : Number(selectedLoan.rollover_count || 0) > 0 ? 'Legacy payment · cycle not verified' : 'Original loan cycle'}
+                            {Number.isFinite(Number(inst.allocated_principal)) && Number(inst.allocated_principal) + Number(inst.allocated_interest) > 0 ? ` · Principal ₦${Number(inst.allocated_principal).toLocaleString()} · Interest ₦${Number(inst.allocated_interest).toLocaleString()}` : ''}
+                          </p>
                           {inst.note && <p className="text-xs text-gray-400">{inst.note}</p>}
                         </div>
                         <div className="text-right">
