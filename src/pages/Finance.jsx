@@ -98,19 +98,12 @@ export default function Finance() {
     }
   }
 
-  // Legacy instalments may have rollover_number=0 because the column was added later.
-  // Infer their cycle from the recorded payment date and rollover start date.
-  // Explicit non-zero cycle numbers on newer records are authoritative.
-  const effectiveRolloverNumber = row => {
-    const recordedCycle = Number(row.rollover_number || 0)
-    if (recordedCycle > 0) return recordedCycle
-
-    const paymentDate = String(row.payment_date || '').slice(0, 10)
-    const datedCycle = rollovers
-      .filter(item => item.loan_id === row.loan_id && String(item.rolled_over_at || '').slice(0, 10) <= paymentDate)
-      .reduce((latest, item) => Math.max(latest, Number(item.rollover_number || 0)), 0)
-    return Math.max(recordedCycle, datedCycle)
-  }
+  // A zero rollover_number is the database default for legacy rows, not proof
+  // that a payment belongs to the first or latest cycle. Do not infer from dates:
+  // rollovers can be backdated and payments can share the rollover date.
+  // Keep unclassified legacy payments in the lifetime ledger, but exclude them
+  // from current-cycle calculations until their cycle is verified.
+  const effectiveRolloverNumber = row => Number(row.rollover_number || 0)
 
   // Reconstruct principal-first allocations for legacy repayments created before
   // explicit allocation fields existed. Newer records continue to use their saved allocations.
