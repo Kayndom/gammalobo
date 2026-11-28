@@ -26,7 +26,7 @@ export default function Loanees() {
   async function fetchLoanHistory(applicantId) {
     const { data } = await supabase
       .from('loans')
-      .select('*, instalments(*)')
+      .select('*, instalments(*), loan_logs(amount,activity_type,created_at)')
       .eq('applicant_id', applicantId)
       .order('created_at', { ascending: false })
     if (data) setLoans(data)
@@ -147,28 +147,21 @@ export default function Loanees() {
                 </div>
               </div>
 
-              {loans.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="bg-gray-50 rounded-lg p-3 text-center">
-                    <p className="text-xs text-gray-500">Total Borrowed</p>
-                    <p className="font-bold text-gray-800 text-sm">
-                      ₦{loans.reduce((sum, l) => sum + Number(l.principal), 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3 text-center">
-                    <p className="text-xs text-gray-500">Total Repaid</p>
-                    <p className="font-bold text-green-600 text-sm">
-                      ₦{loans.reduce((sum, l) => sum + Number(l.amount_paid), 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3 text-center">
-  <p className="text-xs text-gray-500">Outstanding</p>
-  <p className="font-bold text-red-600 text-sm">
-    ₦{loans.filter(l => ['active', 'overdue'].includes(l.status)).reduce((sum, l) => sum + Number(l.outstanding_balance), 0).toLocaleString()}
-  </p>
-</div>
+              {loans.length > 0 && (() => {
+                const originalCashDisbursed = loans.reduce((sum, loan) => {
+                  const firstDisbursement = (loan.loan_logs || []).filter(log => log.activity_type === 'disbursement').sort((a,b) => new Date(a.created_at)-new Date(b.created_at))[0]
+                  return sum + Number(firstDisbursement?.amount || (Number(loan.rollover_count || 0) === 0 ? loan.principal : 0))
+                }, 0)
+                const lifetimeRepayments = loans.reduce((sum, loan) => sum + (loan.instalments || []).reduce((paid, row) => paid + Number(row.amount_paid || 0), 0), 0)
+                const outstanding = loans.filter(loan => ['active','overdue'].includes(loan.status)).reduce((sum, loan) => sum + Number(loan.outstanding_balance || 0), 0)
+                const lifetimeInterest = Math.max(0, lifetimeRepayments - originalCashDisbursed)
+                return <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-gray-50 rounded-lg p-3 text-center"><p className="text-xs text-gray-500">Original cash disbursed</p><p className="font-bold text-gray-800 text-sm">₦{originalCashDisbursed.toLocaleString()}</p></div>
+                  <div className="bg-gray-50 rounded-lg p-3 text-center"><p className="text-xs text-gray-500">Lifetime repayments</p><p className="font-bold text-green-600 text-sm">₦{lifetimeRepayments.toLocaleString()}</p></div>
+                  <div className="bg-gray-50 rounded-lg p-3 text-center"><p className="text-xs text-gray-500">Lifetime interest collected*</p><p className="font-bold text-green-700 text-sm">₦{lifetimeInterest.toLocaleString()}</p></div>
+                  <div className="bg-gray-50 rounded-lg p-3 text-center"><p className="text-xs text-gray-500">Outstanding balances</p><p className="font-bold text-red-600 text-sm">₦{outstanding.toLocaleString()}</p></div>
                 </div>
-              )}
+              })()}
 
               <div>
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">Loan History</h3>
@@ -182,11 +175,10 @@ export default function Loanees() {
                           <div>
                             <p className="text-sm font-medium text-gray-700">
                               ₦{Number(loan.principal).toLocaleString()}
-                              <span className="text-gray-400 font-normal"> principal</span>
+                              <span className="text-gray-400 font-normal"> {Number(loan.rollover_count || 0) > 0 ? 'current rollover capital' : 'original principal'}</span>
                             </p>
-                            <p className="text-xs text-gray-500">
-                              Total: ₦{Number(loan.total_owed).toLocaleString()}
-                            </p>
+                            <p className="text-xs text-gray-500">Current-cycle total: ₦{Number(loan.total_owed).toLocaleString()} · Current-cycle paid: ₦{Number(loan.amount_paid).toLocaleString()}</p>
+                            <p className="text-xs text-gray-500">Lifetime repayments: ₦{(loan.instalments || []).reduce((sum, row) => sum + Number(row.amount_paid || 0), 0).toLocaleString()}</p>
                           </div>
                           {getStatusBadge(loan.status)}
                         </div>
