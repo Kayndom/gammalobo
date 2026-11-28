@@ -22,6 +22,7 @@ export default function Finance() {
   const [instalments, setInstalments] = useState([])
   const [disbursements, setDisbursements] = useState([])
   const [rollovers, setRollovers] = useState([])
+  const [loanActivityLogs, setLoanActivityLogs] = useState([])
   const [dataLoadError, setDataLoadError] = useState('')
   const [showCapitalForm, setShowCapitalForm] = useState(false)
   const [showWithdrawalForm, setShowWithdrawalForm] = useState(false)
@@ -46,7 +47,8 @@ export default function Finance() {
       supabase.from('investor_accruals').select('investment_id,amount'),
       supabase.from('instalments').select('id,loan_id,rollover_number,amount_paid,allocated_principal,allocated_interest,payment_date,loans(applicants(full_name))'),
       supabase.from('loan_logs').select('id,loan_id,amount,created_at,description,loans(applicants(full_name))').eq('activity_type', 'disbursement'),
-      supabase.from('rollovers').select('loan_id,rollover_number,new_principal,new_interest_amount,rolled_over_at')
+      supabase.from('rollovers').select('loan_id,rollover_number,new_principal,new_interest_amount,rolled_over_at'),
+      supabase.from('loan_logs').select('id,loan_id,activity_type,amount,created_at').in('activity_type', ['payment', 'rollover'])
     ])
     const failed = results.find(result => result.error)
     if (failed) { setError(failed.error.message); setDataLoadError(failed.error.message) } else setDataLoadError('')
@@ -59,6 +61,7 @@ export default function Finance() {
     setInstalments(results[6].data || [])
     setDisbursements(results[7].data || [])
     setRollovers(results[8].data || [])
+    setLoanActivityLogs(results[9].data || [])
     setLoading(false)
   }
 
@@ -98,12 +101,32 @@ export default function Finance() {
     }
   }
 
-  // A zero rollover_number is the database default for legacy rows, not proof
-  // that a payment belongs to the first or latest cycle. Do not infer from dates:
-  // rollovers can be backdated and payments can share the rollover date.
-  // Keep unclassified legacy payments in the lifetime ledger, but exclude them
-  // from current-cycle calculations until their cycle is verified.
-  const effectiveRolloverNumber = row => Number(row.rollover_number || 0)
+  // Recover legacy cycle numbers from immutable audit events where a payment
+  // amount identifies exactly one cycle. This avoids relying on user-entered
+  // payment dates, which may be shared with or backdated across a rollover.
+  const legacyCycleMap = useMemo(() => {
+    const result = new Map()
+    instalments.filter(row => Number(row.rollover_number || 0) === 0).forEach(row => {
+      const matchingPaymentLogs = loanActivityLogs.filter(log =>
+        log.loan_id === row.loan_id &&
+        log.activity_type === 'payment' &&
+        Math.abs(Number(log.amount || 0) - Number(row.amount_paid || 0)) < 0.02
+      )
+      if (!matchingPaymentLogs.length) return
+      const candidateCycles = [...new Set(matchingPaymentLogs.map(log =>
+        loanActivityLogs.filter(event => event.loan_id === row.loan_id && event.activity_type === 'rollover' &&
+          new Date(event.created_at) < new Date(log.created_at)).length
+      ))]
+      if (candidateCycles.length === 1) result.set(row.id, candidateCycles[0])
+    })
+    return result
+  }, [instalments, loanActivityLogs])
+
+  // Explicit cycle numbers remain authoritative. Legacy rows are assigned only
+  // when their matching audit event establishes one unambiguous cycle.
+  const effectiveRolloverNumber = row => Number(row.rollover_number || 0) > 0
+    ? Number(row.rollover_number)
+    : legacyCycleMap.get(row.id) ?? 0
 
   // Reconstruct principal-first allocations for legacy repayments created before
   // explicit allocation fields existed. Newer records continue to use their saved allocations.
@@ -302,7 +325,7 @@ export default function Finance() {
     loans.forEach(loan => {
       const cycle = Number(loan.rollover_count || 0)
       const loanPayments = instalments.filter(row => row.loan_id === loan.id)
-      const hasLegacyUnclassified = cycle > 0 && loanPayments.some(row => Number(row.rollover_number || 0) === 0)
+      const hasLegacyUnclassified = cycle > 0 && loanPayments.some(row => Number(row.rollover_number || 0) === 0 && !legacyCycleMap.has(row.id))
       const currentCyclePayments = loanPayments.filter(row => {
         const recordedCycle = Number(row.rollover_number || 0)
         // Cycle numbers written by the repayment RPC are authoritative.
