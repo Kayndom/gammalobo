@@ -154,7 +154,12 @@ export default function Loanees() {
                 }, 0)
                 const lifetimeRepayments = loans.reduce((sum, loan) => sum + (loan.instalments || []).reduce((paid, row) => paid + Number(row.amount_paid || 0), 0), 0)
                 const outstanding = loans.filter(loan => ['active','overdue'].includes(loan.status)).reduce((sum, loan) => sum + Number(loan.outstanding_balance || 0), 0)
-                const lifetimeInterest = Math.max(0, lifetimeRepayments - originalCashDisbursed)
+                const lifetimeInterest = loans.reduce((sum, loan) => {
+                  const firstDisbursement = (loan.loan_logs || []).filter(log => log.activity_type === 'disbursement').sort((a,b) => new Date(a.created_at)-new Date(b.created_at))[0]
+                  const originalPrincipal = Number(firstDisbursement?.amount || (Number(loan.rollover_count || 0) === 0 ? loan.principal : 0))
+                  const loanRepayments = (loan.instalments || []).reduce((paid, row) => paid + Number(row.amount_paid || 0), 0)
+                  return sum + Math.max(0, loanRepayments - originalPrincipal)
+                }, 0)
                 return <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="bg-gray-50 rounded-lg p-3 text-center"><p className="text-xs text-gray-500">Original cash disbursed</p><p className="font-bold text-gray-800 text-sm">₦{originalCashDisbursed.toLocaleString()}</p></div>
                   <div className="bg-gray-50 rounded-lg p-3 text-center"><p className="text-xs text-gray-500">Lifetime repayments</p><p className="font-bold text-green-600 text-sm">₦{lifetimeRepayments.toLocaleString()}</p></div>
