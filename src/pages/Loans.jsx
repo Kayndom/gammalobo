@@ -3,6 +3,21 @@ import MainLayout from '../layouts/MainLayout'
 import { supabase } from '../lib/supabase'
 import { logLoanToSheets, logPaymentToSheets } from '../lib/sheets'
 
+function getRecordedPaymentCycle(loan, instalment) {
+  const explicitCycle = Number(instalment.rollover_number || 0)
+  if (explicitCycle > 0) return explicitCycle
+  const logs = loan.loan_logs || []
+  const matchingLogs = logs.filter(log =>
+    log.activity_type === 'payment' &&
+    Math.abs(Number(log.amount || 0) - Number(instalment.amount_paid || 0)) < 0.02
+  )
+  if (!matchingLogs.length) return null
+  const cycles = [...new Set(matchingLogs.map(log =>
+    logs.filter(event => event.activity_type === 'rollover' && new Date(event.created_at) < new Date(log.created_at)).length
+  ))]
+  return cycles.length === 1 ? cycles[0] : null
+}
+
 function LoanLedger({ loanId, loan, onPrint }) {
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -882,7 +897,7 @@ export default function Loans() {
                         <div>
                           <p className="text-sm font-semibold text-gray-700">₦{Number(inst.amount_paid).toLocaleString()}</p>
                           <p className="text-xs text-gray-500">
-                            {Number(inst.rollover_number || 0) > 0 ? `Rollover cycle #${inst.rollover_number}` : Number(selectedLoan.rollover_count || 0) > 0 ? 'Legacy payment · cycle not verified' : 'Original loan cycle'}
+                            {getRecordedPaymentCycle(selectedLoan, inst) === null ? 'Legacy payment · cycle not verified' : getRecordedPaymentCycle(selectedLoan, inst) === 0 ? 'Original loan cycle' : `Rollover cycle #${getRecordedPaymentCycle(selectedLoan, inst)}`}
                             {Number.isFinite(Number(inst.allocated_principal)) && Number(inst.allocated_principal) + Number(inst.allocated_interest) > 0 ? ` · Principal ₦${Number(inst.allocated_principal).toLocaleString()} · Interest ₦${Number(inst.allocated_interest).toLocaleString()}` : ''}
                           </p>
                           {inst.note && <p className="text-xs text-gray-400">{inst.note}</p>}
