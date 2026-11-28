@@ -326,13 +326,7 @@ export default function Finance() {
       const cycle = Number(loan.rollover_count || 0)
       const loanPayments = instalments.filter(row => row.loan_id === loan.id)
       const hasLegacyUnclassified = cycle > 0 && loanPayments.some(row => Number(row.rollover_number || 0) === 0 && !legacyCycleMap.has(row.id))
-      const currentCyclePayments = loanPayments.filter(row => {
-        const recordedCycle = Number(row.rollover_number || 0)
-        // Cycle numbers written by the repayment RPC are authoritative.
-        // Legacy zero-valued rows cannot safely be assigned after a rollover
-        // from payment dates alone (especially when a rollover was backdated).
-        return cycle === 0 ? recordedCycle === 0 : recordedCycle === cycle
-      })
+      const currentCyclePayments = loanPayments.filter(row => effectiveRolloverNumber(row) === cycle)
       const recordedPayments = currentCyclePayments.reduce((sum, row) => sum + Number(row.amount_paid || 0), 0)
       const expectedBalance = Math.max(0, Number(loan.total_owed || 0) - Number(loan.amount_paid || 0))
       const storedBalance = Number(loan.outstanding_balance || 0)
