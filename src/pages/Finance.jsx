@@ -308,15 +308,25 @@ export default function Finance() {
     const tolerance = 0.02
     loans.forEach(loan => {
       const cycle = Number(loan.rollover_count || 0)
-      const currentCyclePayments = instalments.filter(row => row.loan_id === loan.id && effectiveRolloverNumber(row) === cycle)
+      const loanPayments = instalments.filter(row => row.loan_id === loan.id)
+      const hasLegacyUnclassified = cycle > 0 && loanPayments.some(row => Number(row.rollover_number || 0) === 0)
+      const currentCyclePayments = loanPayments.filter(row => {
+        const recordedCycle = Number(row.rollover_number || 0)
+        // Cycle numbers written by the repayment RPC are authoritative.
+        // Legacy zero-valued rows cannot safely be assigned after a rollover
+        // from payment dates alone (especially when a rollover was backdated).
+        return cycle === 0 ? recordedCycle === 0 : recordedCycle === cycle
+      })
       const recordedPayments = currentCyclePayments.reduce((sum, row) => sum + Number(row.amount_paid || 0), 0)
       const expectedBalance = Math.max(0, Number(loan.total_owed || 0) - Number(loan.amount_paid || 0))
       const storedBalance = Number(loan.outstanding_balance || 0)
       if (Math.abs(expectedBalance - storedBalance) > tolerance) {
         issues.push({ id: 'loan-balance-' + loan.id, area: 'Loan balance', person: loan.applicants?.full_name || 'Borrower', detail: 'Stored outstanding balance differs from total owed less payments in the current loan cycle.', expected: expectedBalance, recorded: storedBalance })
       }
-      if (Math.abs(recordedPayments - Number(loan.amount_paid || 0)) > tolerance) {
-        issues.push({ id: 'loan-payments-' + loan.id, area: 'Loan repayments', person: loan.applicants?.full_name || 'Borrower', detail: 'Current-cycle instalment records do not match the amount-paid figure on the loan.', expected: Number(loan.amount_paid || 0), recorded: recordedPayments })
+      if (hasLegacyUnclassified) {
+        issues.push({ id: 'loan-cycle-history-' + loan.id, area: 'Legacy repayment cycle', person: loan.applicants?.full_name || 'Borrower', detail: 'Some older repayments have no saved rollover-cycle number. They remain included in lifetime repayment and interest totals, but cannot safely be assigned to the current cycle without reviewing the original payment and rollover records.', expected: Number(loan.amount_paid || 0), recorded: recordedPayments })
+      } else if (Math.abs(recordedPayments - Number(loan.amount_paid || 0)) > tolerance) {
+        issues.push({ id: 'loan-payments-' + loan.id, area: 'Current-cycle repayments', person: loan.applicants?.full_name || 'Borrower', detail: 'Cycle-tagged instalment records do not match the current-cycle amount-paid figure on the loan.', expected: Number(loan.amount_paid || 0), recorded: recordedPayments })
       }
     })
     instalments.forEach(row => {
@@ -420,7 +430,7 @@ export default function Finance() {
         </div>
         {dataLoadError ? <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"><strong>Checks incomplete.</strong> Some financial records could not be loaded: {dataLoadError}. Refresh after resolving the data access issue.</div> : reconciliation.length === 0 ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4"><p className="font-semibold text-emerald-800">No discrepancies detected</p><p className="text-sm text-emerald-700 mt-1">The checks below found no differences in the records currently loaded. This is not a bank reconciliation or an audit.</p></div> : <div className="rounded-lg border border-amber-200 bg-amber-50 p-4"><p className="font-semibold text-amber-900">{reconciliation.length} item(s) need review</p><p className="text-sm text-amber-800 mt-1">No records have been changed. Review each item against your original payment evidence before making any correction.</p></div>}
         {!dataLoadError && reconciliation.length > 0 && <div className="divide-y divide-slate-100">{reconciliation.map(issue => <div key={issue.id} className="py-3"><div className="flex flex-wrap justify-between gap-2"><div><p className="text-sm font-semibold text-slate-800">{issue.area} · {issue.person}</p><p className="text-xs text-slate-500 mt-1">{issue.detail}</p></div><span className="text-xs font-semibold text-amber-700">Review required</span></div><div className="grid grid-cols-2 gap-3 mt-2 text-xs"><p className="text-slate-500">Expected <strong className="block text-slate-800 text-sm">{money(issue.expected)}</strong></p><p className="text-slate-500">Recorded <strong className="block text-slate-800 text-sm">{money(issue.recorded)}</strong></p></div></div>)}</div>}
-        <p className="text-xs text-slate-400">Scope: current loan-cycle balances and repayments, repayment principal/interest allocation, and funded investor agreement payment limits. Does not compare your bank balance or cash-in-hand.</p>
+        <p className="text-xs text-slate-400">Scope: current-cycle balances and explicitly cycle-tagged repayments, legacy cycle-classification gaps, repayment principal/interest allocation, and funded investor agreement payment limits. Does not compare your bank balance or cash-in-hand.</p>
       </section>
       <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 space-y-2 shadow-sm">
         <h2 className="font-bold text-gray-800">Accounting interpretation</h2>
