@@ -774,9 +774,9 @@ export default function Loans() {
           </div>
 
           {selectedLoan && (
-            <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-0 sm:p-5" onClick={() => setSelectedLoan(null)}>
-              <section role="dialog" aria-modal="true" aria-label="Loan details" onClick={e => e.stopPropagation()} className="bg-white w-full sm:max-w-3xl rounded-t-2xl sm:rounded-xl shadow-2xl overflow-y-auto p-5 sm:p-7 space-y-5" style={{ maxHeight: '94dvh' }}>
-                <div className="sticky top-0 z-10 -mx-5 -mt-5 sm:-mx-7 sm:-mt-7 px-5 sm:px-7 py-3 mb-1 bg-white/95 backdrop-blur border-b border-slate-200 flex justify-end">
+            <div className="fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-[2px] flex items-center justify-center p-2 sm:p-5" onClick={() => setSelectedLoan(null)}>
+              <section role="dialog" aria-modal="true" aria-label="Loan details" onClick={e => e.stopPropagation()} className="bg-white w-full max-w-3xl rounded-xl shadow-2xl overflow-y-auto overscroll-contain p-4 sm:p-7 space-y-5" style={{ maxHeight: 'calc(100dvh - 16px)', paddingBottom: 'max(1rem, env(safe-area-inset-bottom))', WebkitOverflowScrolling: 'touch' }}>
+                <div className="sticky top-0 z-10 -mx-4 -mt-4 sm:-mx-7 sm:-mt-7 px-4 sm:px-7 py-2 mb-1 bg-white/95 backdrop-blur border-b border-slate-200 flex justify-end">
                   <button type="button" onClick={() => setSelectedLoan(null)} className="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50" aria-label="Close loan details">×</button>
                 </div>
 
