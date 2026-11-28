@@ -383,6 +383,18 @@ export default function Finance() {
         <input placeholder="Reason / note" className="border rounded-lg p-2" value={withdrawalForm.note} onChange={e => setWithdrawalForm({ ...withdrawalForm, note: e.target.value })} />
         <button disabled={saving} className="rounded-lg bg-slate-800 text-white p-2">{saving ? 'Saving…' : 'Record transaction'}</button>
       </form>}
+      <section className="space-y-3">
+        <div><h2 className="font-bold text-gray-800">Financial overview</h2><p className="text-xs text-gray-500">The six figures that explain lending volume, money still at risk, collections and realised performance.</p></div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {primaryCards.map(([label, value, description]) => <div key={label} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2 tabular-nums">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
+        </div>
+      </section>
+      <section className="space-y-3">
+        <div><h2 className="font-bold text-gray-800">Other financial positions</h2><p className="text-xs text-gray-500">Investor obligations, operating costs and estimated cash movement.</p></div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {secondaryCards.map(([label, value, description]) => <div key={label} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2 tabular-nums">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
+        </div>
+      </section>
       <section id="monthly-financial-report" className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 space-y-4 shadow-sm">
         <div className="flex flex-wrap justify-between items-end gap-3">
           <div><h2 className="font-bold text-gray-800">Monthly financial performance report</h2><p className="text-sm text-gray-500">A date-based summary of recorded business activity. Select any month to review or print.</p></div>
@@ -405,18 +417,6 @@ export default function Finance() {
         {dataLoadError ? <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"><strong>Checks incomplete.</strong> Some financial records could not be loaded: {dataLoadError}. Refresh after resolving the data access issue.</div> : reconciliation.length === 0 ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4"><p className="font-semibold text-emerald-800">No discrepancies detected</p><p className="text-sm text-emerald-700 mt-1">The checks below found no differences in the records currently loaded. This is not a bank reconciliation or an audit.</p></div> : <div className="rounded-lg border border-amber-200 bg-amber-50 p-4"><p className="font-semibold text-amber-900">{reconciliation.length} item(s) need review</p><p className="text-sm text-amber-800 mt-1">No records have been changed. Review each item against your original payment evidence before making any correction.</p></div>}
         {!dataLoadError && reconciliation.length > 0 && <div className="divide-y divide-slate-100">{reconciliation.map(issue => <div key={issue.id} className="py-3"><div className="flex flex-wrap justify-between gap-2"><div><p className="text-sm font-semibold text-slate-800">{issue.area} · {issue.person}</p><p className="text-xs text-slate-500 mt-1">{issue.detail}</p></div><span className="text-xs font-semibold text-amber-700">Review required</span></div><div className="grid grid-cols-2 gap-3 mt-2 text-xs"><p className="text-slate-500">Expected <strong className="block text-slate-800 text-sm">{money(issue.expected)}</strong></p><p className="text-slate-500">Recorded <strong className="block text-slate-800 text-sm">{money(issue.recorded)}</strong></p></div></div>)}</div>}
         <p className="text-xs text-slate-400">Scope: current loan-cycle balances and repayments, repayment principal/interest allocation, and funded investor agreement payment limits. Does not compare your bank balance or cash-in-hand.</p>
-      </section>
-      <section className="space-y-3">
-        <div><h2 className="font-bold text-gray-800">Financial overview</h2><p className="text-xs text-gray-500">The six figures that explain lending volume, money still at risk, collections and realised performance.</p></div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {primaryCards.map(([label, value, description]) => <div key={label} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2 tabular-nums">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
-        </div>
-      </section>
-      <section className="space-y-3">
-        <div><h2 className="font-bold text-gray-800">Other financial positions</h2><p className="text-xs text-gray-500">Investor obligations, operating costs and estimated cash movement.</p></div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {secondaryCards.map(([label, value, description]) => <div key={label} className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm"><p className="text-xs text-gray-500">{label}</p><p className="text-xl font-black text-slate-800 mt-2 tabular-nums">{value}</p><p className="text-xs text-gray-400 mt-1">{description}</p></div>)}
-        </div>
       </section>
       <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 space-y-2 shadow-sm">
         <h2 className="font-bold text-gray-800">Accounting interpretation</h2>
