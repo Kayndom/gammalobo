@@ -153,6 +153,45 @@ export default function Finance() {
     return result
   }, [instalments, loans, disbursements, rollovers])
 
+  // Lifetime allocation treats every rollover as the same loan, not a fresh cash advance.
+  // Repayments first recover the original cash principal; amounts above it are lifetime interest received.
+  const lifecycleAllocations = useMemo(() => {
+    const result = new Map()
+    const groups = new Map()
+    instalments.forEach(row => {
+      if (!groups.has(row.loan_id)) groups.set(row.loan_id, [])
+      groups.get(row.loan_id).push(row)
+    })
+    groups.forEach((rows, loanId) => {
+      const originalDisbursement = [...disbursements]
+        .filter(row => row.loan_id === loanId)
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))[0]
+      const currentLoan = loans.find(row => row.id === loanId)
+      const originalPrincipal = Number(originalDisbursement?.amount ||
+        (Number(currentLoan?.rollover_count || 0) === 0 ? currentLoan?.principal : 0) || 0)
+      if (!(originalPrincipal > 0)) {
+        rows.forEach(row => result.set(row.id, {
+          principal: Number(repaymentAllocations.get(row.id)?.principal || 0),
+          interest: Number(repaymentAllocations.get(row.id)?.interest || 0)
+        }))
+        return
+      }
+      let principalRemaining = originalPrincipal
+      const sorted = [...rows].sort((a, b) => {
+        const dateDiff = new Date(a.payment_date || 0) - new Date(b.payment_date || 0)
+        return dateDiff || String(a.id).localeCompare(String(b.id))
+      })
+      sorted.forEach(row => {
+        const paid = Number(row.amount_paid || 0)
+        const principal = Math.min(paid, principalRemaining)
+        const interest = Math.max(0, paid - principal)
+        principalRemaining = Math.max(0, principalRemaining - principal)
+        result.set(row.id, { principal, interest })
+      })
+    })
+    return result
+  }, [instalments, loans, disbursements, repaymentAllocations])
+
   const stats = useMemo(() => {
     const sum = (rows, field = 'amount') => rows.reduce((total, row) => total + Number(row[field] || 0), 0)
     const activeLoans = loans.filter(loan => ['active', 'overdue'].includes(loan.status))
@@ -167,12 +206,15 @@ export default function Finance() {
     const investorInterestPaid = sum(investorPayments.filter(item => item.payment_type === 'interest'))
     const investorInterestAccrued = sum(investorAccruals)
     const investorInterestOutstanding = Math.max(0, investorInterestAccrued - investorInterestPaid)
-    const realisedLoanInterest = instalments.reduce((total, row) => total + Number(repaymentAllocations.get(row.id)?.interest || 0), 0)
+    const realisedLoanInterest = instalments.reduce((total, row) => total + Number(lifecycleAllocations.get(row.id)?.interest || 0), 0)
     const currentPrincipalOutstanding = activeLoans.reduce((total, loan) => {
-      const cycle = Number(loan.rollover_count || 0)
-      const cyclePayments = instalments.filter(row => row.loan_id === loan.id && Number(row.rollover_number || 0) === cycle)
-      const principalPaid = cyclePayments.reduce((sum, row) => sum + Number(repaymentAllocations.get(row.id)?.principal || 0), 0)
-      return total + Math.max(0, Number(loan.principal || 0) - principalPaid)
+      const lifetimePayments = instalments.filter(row => row.loan_id === loan.id)
+      const principalRecovered = lifetimePayments.reduce((sum, row) => sum + Number(lifecycleAllocations.get(row.id)?.principal || 0), 0)
+      const originalDisbursement = [...disbursements]
+        .filter(row => row.loan_id === loan.id)
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))[0]
+      const originalPrincipal = Number(originalDisbursement?.amount || (Number(loan.rollover_count || 0) === 0 ? loan.principal : 0) || 0)
+      return total + Math.max(0, originalPrincipal - principalRecovered)
     }, 0)
     const currentCycleInterestOutstanding = activeLoans.reduce((total, loan) => {
       const cycle = Number(loan.rollover_count || 0)
@@ -196,7 +238,7 @@ export default function Finance() {
       cashMovementEstimate, borrowerReceivables: sum(activeLoans, 'outstanding_balance'),
       activeLoanCount: activeLoans.length, cashOutflows
     }
-  }, [loans, injections, withdrawals, investments, investorPayments, investorAccruals, instalments, disbursements, repaymentAllocations])
+  }, [loans, injections, withdrawals, investments, investorPayments, investorAccruals, instalments, disbursements, repaymentAllocations, lifecycleAllocations])
 
   if (loading) return <MainLayout><p className="text-gray-500">Loading financial records…</p></MainLayout>
 
@@ -213,7 +255,7 @@ export default function Finance() {
   const monthlyInvestorFunding = sumForReport(investments.filter(row => row.funded_at && row.status !== 'cancelled' && inMonth(row.funded_at)), 'principal')
   const monthlyDisbursed = sumForReport(disbursements.filter(row => inMonth(row.created_at)))
   const monthlyRepayments = sumForReport(instalments.filter(row => inMonth(row.payment_date)), 'amount_paid')
-  const monthlyLoanInterest = instalments.filter(row => inMonth(row.payment_date)).reduce((total, row) => total + Number(repaymentAllocations.get(row.id)?.interest || 0), 0)
+  const monthlyLoanInterest = instalments.filter(row => inMonth(row.payment_date)).reduce((total, row) => total + Number(lifecycleAllocations.get(row.id)?.interest || 0), 0)
   const monthlyInvestorInterestPaid = sumForReport(investorPayments.filter(row => row.payment_type === 'interest' && inMonth(row.payment_date)))
   const monthlyExpenses = sumForReport(withdrawals.filter(row => row.withdrawal_type === 'expense' && inMonth(row.withdrawn_at)))
   const monthlyOwnerWithdrawals = sumForReport(withdrawals.filter(row => ['earnings', 'bonus'].includes(row.withdrawal_type) && inMonth(row.withdrawn_at)))
@@ -267,7 +309,8 @@ export default function Finance() {
       }
     })
     instalments.forEach(row => {
-      const allocated = Number(row.allocated_principal || 0) + Number(row.allocated_interest || 0)
+      const allocation = repaymentAllocations.get(row.id) || { principal: 0, interest: 0 }
+      const allocated = Number(allocation.principal || 0) + Number(allocation.interest || 0)
       if (Math.abs(Number(row.amount_paid || 0) - allocated) > tolerance) {
         issues.push({ id: 'allocation-' + row.id, area: 'Repayment allocation', person: row.loans?.applicants?.full_name || 'Borrower', detail: 'Principal plus interest allocation does not equal the repayment amount.', expected: Number(row.amount_paid || 0), recorded: allocated })
       }
@@ -372,7 +415,7 @@ export default function Finance() {
         <h2 className="font-bold text-gray-800">Accounting interpretation</h2>
         <p className="text-sm text-gray-600">Investor principal is a repayable liability, not revenue. Owner capital is funding, not profit. Principal returned to investors reduces cash and the liability; investor interest and operating expenses are costs. Accrued but unpaid investor interest is shown separately from interest already paid.</p>
         <p className="text-sm text-gray-600">Moving profit to capital is an internal reclassification and is not treated as a cash outflow. Earnings and bonus withdrawals and expenses are cash outflows.</p>
-        <p className="text-sm text-gray-600">Repayments are allocated principal-first, then interest, within each loan cycle. Finance now uses saved allocations where complete and reconstructs older records using the original cycle principal and recorded payment history. This lets lifetime interest include collections from the original loan and every rollover without counting rolled-over interest as cash received.</p>
+        <p className="text-sm text-gray-600">For lifetime reporting, REGNUM follows the original cash principal through every rollover. Borrower payments first recover that original principal; amounts received above it are counted as lifetime interest. A rollover is not a new cash disbursement, and unpaid interest carried into a rollover is recognised as received only when the borrower actually pays it. Individual loan-cycle allocations remain available for reconciliation and loan history.</p>
         <p className="text-sm text-gray-600">Cash-basis operating profit is collected loan interest less investor interest actually paid and recorded operating expenses. It is not an accrual-basis statutory profit figure and does not include uncollected loan interest.</p>
         <p className="text-sm text-gray-600">Net cash movement is an estimate from saved transactions, not a verified bank balance. Reconcile it against bank statements. Loan disbursement logs now record principal as cash paid out.</p>
       </section>
