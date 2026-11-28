@@ -344,7 +344,7 @@ export default function Loans() {
               <div class="row-value">${loan.interest_rate}%</div>
             </div>
             <div class="row">
-              <div class="row-label">Total Paid</div>
+              <div class="row-label">Current-cycle paid</div>
               <div class="row-value">₦${Number(loan.amount_paid).toLocaleString()}</div>
             </div>
             ${payment.note ? `<div class="row"><div class="row-label">Note</div><div class="row-value">${payment.note}</div></div>` : ''}
@@ -449,7 +449,7 @@ export default function Loans() {
 
         <div class="loan-summary">
           <div class="loan-summary-title">Loan Summary</div>
-          <div class="loan-amount">₦${Number(loan.principal).toLocaleString()}</div>
+          <div class="loan-amount">₦${Number(loan.principal).toLocaleString()}</div><div class="loan-summary-title">${Number(loan.rollover_count || 0) > 0 ? "Current rollover capital" : "Original cash principal"}</div>
           <div class="loan-grid">
             <div class="loan-item"><div class="loan-item-label">Total Repayment</div><div class="loan-item-value">₦${Number(loan.total_owed).toLocaleString()}</div></div>
             <div class="loan-item"><div class="loan-item-label">Interest Rate</div><div class="loan-item-value">${displayRate}%</div></div>
@@ -585,9 +585,9 @@ export default function Loans() {
         </div>
 
         <div class="summary">
-          <div class="summary-card"><div class="summary-label">Principal</div><div class="summary-value">₦${Number(loan.principal).toLocaleString()}</div></div>
+          <div class="summary-card"><div class="summary-label">${Number(loan.rollover_count || 0) > 0 ? "Current rollover capital" : "Original principal"}</div><div class="summary-value">₦${Number(loan.principal).toLocaleString()}</div></div>
           <div class="summary-card"><div class="summary-label">Total Owed</div><div class="summary-value">₦${Number(loan.total_owed).toLocaleString()}</div></div>
-          <div class="summary-card"><div class="summary-label">Total Paid</div><div class="summary-value" style="color:#16a34a;">₦${Number(loan.amount_paid).toLocaleString()}</div></div>
+          <div class="summary-card"><div class="summary-label">Current-cycle repayments</div><div class="summary-value" style="color:#16a34a;">₦${Number(loan.amount_paid).toLocaleString()}</div></div>
           <div class="summary-card"><div class="summary-label">Outstanding</div><div class="summary-value" style="color:${Number(loan.outstanding_balance) <= 0 ? '#16a34a' : '#dc2626'};">₦${Number(loan.outstanding_balance).toLocaleString()}</div></div>
         </div>
 
