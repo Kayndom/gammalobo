@@ -148,6 +148,7 @@ export default function MainLayout({ children }) {
               {notificationsLoading ? <p className="p-5 text-sm text-slate-500">Checking your records…</p> : notifications.length === 0 ? <div className="p-6 text-center"><p className="text-sm font-semibold text-slate-700">You're all caught up</p><p className="text-xs text-slate-500 mt-1">No overdue loans, upcoming due dates or pending reminders.</p></div> : <div className="divide-y divide-slate-100">{notifications.map(item => <button key={item.id} type="button" onClick={() => { setNotificationsOpen(false); navigate(item.route) }} className="w-full text-left px-4 py-3 hover:bg-slate-50 flex gap-3 items-start"><span className={'mt-1 w-2 h-2 rounded-full shrink-0 ' + (item.priority === 'urgent' ? 'bg-red-500' : item.priority === 'important' ? 'bg-amber-500' : 'bg-slate-400')}></span><span className="min-w-0"><span className="block text-sm font-semibold text-slate-800">{item.title}</span><span className="block text-xs text-slate-500 mt-0.5">{item.detail}</span></span><span className="ml-auto text-xs text-slate-400 shrink-0">View</span></button>)}</div>}
               <div className="px-4 py-2 border-t border-slate-200 text-[11px] text-slate-400">Updates when you open the workspace. Check the relevant section for full records.</div>
             </div>}
+            </div>
           </div>
         </header>
         <main className="flex-1 min-w-0 p-4 sm:p-6 xl:p-8">
