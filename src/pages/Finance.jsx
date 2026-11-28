@@ -98,13 +98,23 @@ export default function Finance() {
     }
   }
 
+  // Older instalments may have the default rollover_number=0 because that column
+  // was added later. Their payment date and rollover history identify the correct cycle.
+  const effectiveRolloverNumber = row => {
+    const paymentDate = String(row.payment_date || '').slice(0, 10)
+    const datedCycle = rollovers
+      .filter(item => item.loan_id === row.loan_id && String(item.rolled_over_at || '').slice(0, 10) <= paymentDate)
+      .reduce((latest, item) => Math.max(latest, Number(item.rollover_number || 0)), 0)
+    return Math.max(Number(row.rollover_number || 0), datedCycle)
+  }
+
   // Reconstruct principal-first allocations for legacy repayments created before
   // explicit allocation fields existed. Newer records continue to use their saved allocations.
   const repaymentAllocations = useMemo(() => {
     const result = new Map()
     const groups = new Map()
     instalments.forEach(row => {
-      const key = `${row.loan_id}:${Number(row.rollover_number || 0)}`
+      const key = `${row.loan_id}:${effectiveRolloverNumber(row)}`
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key).push(row)
     })
@@ -209,14 +219,14 @@ export default function Finance() {
     const realisedLoanInterest = instalments.reduce((total, row) => total + Number(lifecycleAllocations.get(row.id)?.interest || 0), 0)
     const currentPrincipalOutstanding = activeLoans.reduce((total, loan) => {
       const cycle = Number(loan.rollover_count || 0)
-      const cyclePayments = instalments.filter(row => row.loan_id === loan.id && Number(row.rollover_number || 0) === cycle)
+      const cyclePayments = instalments.filter(row => row.loan_id === loan.id && effectiveRolloverNumber(row) === cycle)
       const principalPaid = cyclePayments.reduce((sum, row) => sum + Number(repaymentAllocations.get(row.id)?.principal || 0), 0)
       return total + Math.max(0, Number(loan.principal || 0) - principalPaid)
     }, 0)
     const currentCycleInterestOutstanding = activeLoans.reduce((total, loan) => {
       const cycle = Number(loan.rollover_count || 0)
       const interestPaid = instalments
-        .filter(row => row.loan_id === loan.id && Number(row.rollover_number || 0) === cycle)
+        .filter(row => row.loan_id === loan.id && effectiveRolloverNumber(row) === cycle)
         .reduce((sum, row) => sum + Number(repaymentAllocations.get(row.id)?.interest || 0), 0)
       return total + Math.max(0, Number(loan.interest_amount || 0) - interestPaid)
     }, 0)
@@ -294,7 +304,7 @@ export default function Finance() {
     const tolerance = 0.02
     loans.forEach(loan => {
       const cycle = Number(loan.rollover_count || 0)
-      const currentCyclePayments = instalments.filter(row => row.loan_id === loan.id && Number(row.rollover_number || 0) === cycle)
+      const currentCyclePayments = instalments.filter(row => row.loan_id === loan.id && effectiveRolloverNumber(row) === cycle)
       const recordedPayments = currentCyclePayments.reduce((sum, row) => sum + Number(row.amount_paid || 0), 0)
       const expectedBalance = Math.max(0, Number(loan.total_owed || 0) - Number(loan.amount_paid || 0))
       const storedBalance = Number(loan.outstanding_balance || 0)
