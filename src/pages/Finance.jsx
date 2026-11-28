@@ -214,17 +214,17 @@ export default function Finance() {
     const investorInterestAccrued = sum(investorAccruals)
     const investorInterestOutstanding = Math.max(0, investorInterestAccrued - investorInterestPaid)
     const realisedLoanInterest = instalments.reduce((total, row) => total + Number(lifecycleAllocations.get(row.id)?.interest || 0), 0)
+    // The loan row is authoritative for cumulative paid and balance in its
+    // current cycle. Legacy instalments without a cycle marker must not cause
+    // current-cycle principal/interest to be understated or double-counted.
     const currentPrincipalOutstanding = activeLoans.reduce((total, loan) => {
-      const cycle = Number(loan.rollover_count || 0)
-      const cyclePayments = instalments.filter(row => row.loan_id === loan.id && effectiveRolloverNumber(row) === cycle)
-      const principalPaid = cyclePayments.reduce((sum, row) => sum + Number(repaymentAllocations.get(row.id)?.principal || 0), 0)
+      const currentCyclePaid = Number(loan.amount_paid || 0)
+      const principalPaid = Math.min(currentCyclePaid, Number(loan.principal || 0))
       return total + Math.max(0, Number(loan.principal || 0) - principalPaid)
     }, 0)
     const currentCycleInterestOutstanding = activeLoans.reduce((total, loan) => {
-      const cycle = Number(loan.rollover_count || 0)
-      const interestPaid = instalments
-        .filter(row => row.loan_id === loan.id && effectiveRolloverNumber(row) === cycle)
-        .reduce((sum, row) => sum + Number(repaymentAllocations.get(row.id)?.interest || 0), 0)
+      const currentCyclePaid = Number(loan.amount_paid || 0)
+      const interestPaid = Math.max(0, currentCyclePaid - Number(loan.principal || 0))
       return total + Math.max(0, Number(loan.interest_amount || 0) - interestPaid)
     }, 0)
     const cashBasisNetInterest = realisedLoanInterest - investorInterestPaid
