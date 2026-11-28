@@ -14,6 +14,7 @@ export default function LoaneeForm() {
   const [previousGuarantor, setPreviousGuarantor] = useState(null)
   const [detected, setDetected] = useState(false)
   const [detecting, setDetecting] = useState(false)
+  const [verifiedApplicantId, setVerifiedApplicantId] = useState(null)
 
   const [form, setForm] = useState({
     full_name: '', phone: '', email: '', address: '', occupation: '',
@@ -39,65 +40,91 @@ export default function LoaneeForm() {
   }
 
   async function detectReturningLoanee() {
-    if (!form.phone && !form.bvn && !form.nin && !form.email && !form.full_name) {
-      setError('Please enter at least one field to search.')
+    // Names are not unique identifiers. Only exact, non-empty identifiers
+    // may be used to identify a returning applicant.
+    const identifiers = [
+      ['phone', form.phone.trim()],
+      ['bvn', form.bvn.trim()],
+      ['nin', form.nin.trim()],
+      ['email', form.email.trim().toLowerCase()],
+    ].filter(([, value]) => value)
+
+    if (identifiers.length === 0) {
+      setError('Please enter your phone number, BVN, NIN or email to check for an existing application. A name alone cannot verify identity.')
       return
     }
+
     setDetecting(true)
     setError('')
+    setVerifiedApplicantId(null)
 
-    const conditions = []
-    if (form.phone) conditions.push(`phone.eq.${form.phone}`)
-    if (form.bvn) conditions.push(`bvn.eq.${form.bvn}`)
-    if (form.nin) conditions.push(`nin.eq.${form.nin}`)
-    if (form.email) conditions.push(`email.eq.${form.email}`)
-    if (form.full_name) conditions.push(`full_name.ilike.%${form.full_name}%`)
+    try {
+      const matches = new Map()
+      for (const [field, value] of identifiers) {
+        const queryValue = field === 'email' ? value : value
+        const { data, error: lookupError } = await supabase
+          .from('applicants')
+          .select('*')
+          .eq(field, queryValue)
+          .neq('full_name', 'Pending')
+          .limit(2)
 
-    const { data: existing } = await supabase
-      .from('applicants')
-      .select('*')
-      .or(conditions.join(','))
-      .not('full_name', 'eq', 'Pending')
-      .maybeSingle()
-
-    if (existing) {
-      setForm(prev => ({
-        ...prev,
-        full_name: existing.full_name || prev.full_name,
-        phone: existing.phone || prev.phone,
-        email: existing.email || prev.email,
-        address: existing.address || prev.address,
-        occupation: existing.occupation || prev.occupation,
-        bvn: existing.bvn || prev.bvn,
-        nin: existing.nin || prev.nin,
-        bank_name: existing.bank_name || prev.bank_name,
-        account_number: existing.account_number || prev.account_number,
-        account_name: existing.account_name || prev.account_name,
-      }))
-
-      const { data: lastApp } = await supabase
-        .from('applications')
-        .select('*, guarantors(*)')
-        .eq('applicant_id', existing.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-
-      if (lastApp?.guarantors) {
-        setPreviousGuarantor(lastApp.guarantors)
+        if (lookupError) throw lookupError
+        for (const applicant of data || []) matches.set(applicant.id, applicant)
       }
 
-      await supabase.from('applications').update({
-        is_returning_loanee: true
-      }).eq('loanee_token', token)
+      if (matches.size > 1) {
+        setError('These details match more than one applicant record. Please contact REGNUM for assistance. No existing details have been loaded.')
+        setDetected(false)
+        setIsReturning(false)
+        setDetecting(false)
+        return
+      }
 
-      setIsReturning(true)
+      const existing = [...matches.values()][0]
+      if (existing) {
+        setVerifiedApplicantId(existing.id)
+        setForm(prev => ({
+          ...prev,
+          full_name: existing.full_name || prev.full_name,
+          phone: existing.phone || prev.phone,
+          email: existing.email || prev.email,
+          address: existing.address || prev.address,
+          occupation: existing.occupation || prev.occupation,
+          bvn: existing.bvn || prev.bvn,
+          nin: existing.nin || prev.nin,
+          bank_name: existing.bank_name || prev.bank_name,
+          account_number: existing.account_number || prev.account_number,
+          account_name: existing.account_name || prev.account_name,
+        }))
+
+        const { data: lastApp, error: lastAppError } = await supabase
+          .from('applications')
+          .select('*, guarantors(*)')
+          .eq('applicant_id', existing.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (lastAppError) throw lastAppError
+        setPreviousGuarantor(lastApp?.guarantors || null)
+        setIsReturning(true)
+        await supabase.from('applications')
+          .update({ is_returning_loanee: true })
+          .eq('loanee_token', token)
+      } else {
+        setIsReturning(false)
+        setPreviousGuarantor(null)
+      }
+
       setDetected(true)
-    } else {
-      setDetected(true)
-      setIsReturning(false)
+    } catch (err) {
+      console.error(err)
+      setError('We could not safely verify your details. Please check them and try again.')
+      setDetected(false)
+    } finally {
+      setDetecting(false)
     }
-    setDetecting(false)
   }
 
   async function handleSubmit() {
@@ -134,31 +161,28 @@ export default function LoaneeForm() {
       if (application.status === 'cancelled') { setError('This application has been cancelled.'); setLoading(false); return }
       if (application.status !== 'pending_loanee') { setError('This application has already been submitted.'); setLoading(false); return }
 
-      let applicantId = null
-      const { data: existing } = await supabase
-        .from('applicants').select('*')
-        .or(`phone.eq.${form.phone},bvn.eq.${form.bvn}`)
-        .not('full_name', 'eq', 'Pending').maybeSingle()
+      // Never perform a second fuzzy or OR-based identity search at submit.
+      // Use only the applicant explicitly verified in the initial check.
+      const applicantId = verifiedApplicantId || application.applicant_id
+      const applicantFields = {
+        full_name: form.full_name, phone: form.phone, email: form.email,
+        address: form.address, occupation: form.occupation, bvn: form.bvn,
+        nin: form.nin, bank_name: form.bank_name,
+        account_number: form.account_number, account_name: form.account_name,
+      }
 
-      if (existing) {
-        await supabase.from('applicants').update({
-          full_name: form.full_name, phone: form.phone, email: form.email,
-          address: form.address, occupation: form.occupation, bvn: form.bvn,
-          nin: form.nin, bank_name: form.bank_name,
-          account_number: form.account_number, account_name: form.account_name,
-        }).eq('id', existing.id)
-        applicantId = existing.id
-        if (application.applicant_id !== existing.id) {
-          await supabase.from('applicants').delete().eq('id', application.applicant_id)
-        }
-      } else {
-        await supabase.from('applicants').update({
-          full_name: form.full_name, phone: form.phone, email: form.email,
-          address: form.address, occupation: form.occupation, bvn: form.bvn,
-          nin: form.nin, bank_name: form.bank_name,
-          account_number: form.account_number, account_name: form.account_name,
-        }).eq('id', application.applicant_id)
-        applicantId = application.applicant_id
+      const { error: applicantUpdateError } = await supabase
+        .from('applicants')
+        .update(applicantFields)
+        .eq('id', applicantId)
+      if (applicantUpdateError) throw applicantUpdateError
+
+      if (application.applicant_id !== applicantId) {
+        const { error: linkError } = await supabase
+          .from('applications')
+          .update({ applicant_id: applicantId })
+          .eq('id', application.id)
+        if (linkError) throw linkError
       }
 
       if (isReturning && keepGuarantor && previousGuarantor) {
