@@ -181,7 +181,7 @@ export default function Finance() {
       })
     })
     return result
-  }, [instalments, loans, disbursements, rollovers])
+  }, [instalments, loans, disbursements, rollovers, legacyCycleMap])
 
   // Lifetime allocation treats every rollover as the same loan, not a fresh cash advance.
   // Repayments first recover the original cash principal; amounts above it are lifetime interest received.
