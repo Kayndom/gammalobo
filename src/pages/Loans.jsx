@@ -93,7 +93,7 @@ export default function Loans() {
     await supabase.rpc('check_overdue_loans')
     const { data } = await supabase
       .from('loans')
-      .select(`*, applicants(*), guarantors(*), instalments(*)`)
+      .select(`*, applicants(*), guarantors(*), instalments(*), loan_logs(*)`)
       .order('created_at', { ascending: false })
     if (data) setLoans(data)
     setLoading(false)
@@ -788,28 +788,54 @@ export default function Loans() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="rounded-xl p-3" style={{ background: '#f8fafc' }}>
-                  <p className="text-xs text-gray-400">Principal</p>
-                  <p className="font-bold text-gray-800">₦{Number(selectedLoan.principal).toLocaleString()}</p>
+              {(() => {
+                const originalDisbursement = (selectedLoan.loan_logs || [])
+                  .filter(log => log.activity_type === 'disbursement')
+                  .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))[0]
+                const originalCapital = Number(originalDisbursement?.amount || (Number(selectedLoan.rollover_count || 0) === 0 ? selectedLoan.principal : 0))
+                const lifetimeRepayments = (selectedLoan.instalments || []).reduce((sum, row) => sum + Number(row.amount_paid || 0), 0)
+                const lifetimeInterest = Math.max(0, lifetimeRepayments - originalCapital)
+                const currentCycleRepayments = (selectedLoan.instalments || [])
+                  .filter(row => Number(row.rollover_number || 0) === Number(selectedLoan.rollover_count || 0))
+                  .reduce((sum, row) => sum + Number(row.amount_paid || 0), 0)
+                return <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="rounded-xl p-3" style={{ background: '#f8fafc' }}>
+                      <p className="text-xs text-gray-400">Original cash disbursed</p>
+                      <p className="font-bold text-gray-800">₦{originalCapital.toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-xl p-3" style={{ background: '#fff7ed' }}>
+                      <p className="text-xs text-orange-600">Current rollover capital</p>
+                      <p className="font-bold text-gray-800">₦{Number(selectedLoan.principal).toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-xl p-3" style={{ background: '#f8fafc' }}>
+                      <p className="text-xs text-gray-400">Current-cycle interest ({selectedLoan.interest_rate}%)</p>
+                      <p className="font-bold text-gray-800">₦{Number(selectedLoan.interest_amount).toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-xl p-3" style={{ background: '#f8fafc' }}>
+                      <p className="text-xs text-gray-400">Current-cycle total owed</p>
+                      <p className="font-bold text-gray-800">₦{Number(selectedLoan.total_owed).toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-xl p-3" style={{ background: '#f8fafc' }}>
+                      <p className="text-xs text-gray-400">Current-cycle repayments</p>
+                      <p className="font-bold text-green-600">₦{Number(selectedLoan.amount_paid).toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-xl p-3" style={{ background: '#f8fafc' }}>
+                      <p className="text-xs text-gray-400">Lifetime repayments</p>
+                      <p className="font-bold text-green-700">₦{lifetimeRepayments.toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-xl p-3" style={{ background: '#f0fdf4' }}>
+                      <p className="text-xs text-green-700">Lifetime interest collected*</p>
+                      <p className="font-bold text-green-700">₦{lifetimeInterest.toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-xl p-3" style={{ background: '#fff1f2' }}>
+                      <p className="text-xs text-red-400">Current outstanding balance</p>
+                      <p className="font-black text-red-600 text-xl">₦{Number(selectedLoan.outstanding_balance).toLocaleString()}</p>
+                    </div>
+                  </div>
+                  {Number(selectedLoan.rollover_count || 0) > 0 && <p className="text-xs text-gray-500">The original cash disbursement is shown separately from the capital carried into the latest rollover. *Lifetime interest is a cash-basis estimate: lifetime repayments less original principal, floored at zero. Finance remains the authoritative reconciled report where historical allocations are incomplete.</p>}
                 </div>
-                <div className="rounded-xl p-3" style={{ background: '#f8fafc' }}>
-                  <p className="text-xs text-gray-400">Interest ({selectedLoan.interest_rate}%)</p>
-                  <p className="font-bold text-gray-800">₦{Number(selectedLoan.interest_amount).toLocaleString()}</p>
-                </div>
-                <div className="rounded-xl p-3" style={{ background: '#f8fafc' }}>
-                  <p className="text-xs text-gray-400">Total Owed</p>
-                  <p className="font-bold text-gray-800">₦{Number(selectedLoan.total_owed).toLocaleString()}</p>
-                </div>
-                <div className="rounded-xl p-3" style={{ background: '#f8fafc' }}>
-                  <p className="text-xs text-gray-400">Amount Paid</p>
-                  <p className="font-bold text-green-600">₦{Number(selectedLoan.amount_paid).toLocaleString()}</p>
-                </div>
-                <div className="col-span-2 rounded-xl p-3" style={{ background: '#fff1f2' }}>
-                  <p className="text-xs text-red-400">Outstanding Balance</p>
-                  <p className="font-black text-red-600 text-xl">₦{Number(selectedLoan.outstanding_balance).toLocaleString()}</p>
-                </div>
-              </div>
+              })()}
 
               <div className="space-y-1">
                 <p className="text-xs text-gray-400">Disbursed: {new Date(selectedLoan.disbursed_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
