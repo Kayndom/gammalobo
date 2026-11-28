@@ -810,9 +810,6 @@ export default function Loans() {
                 const originalCapital = Number(originalDisbursement?.amount || (Number(selectedLoan.rollover_count || 0) === 0 ? selectedLoan.principal : 0))
                 const lifetimeRepayments = (selectedLoan.instalments || []).reduce((sum, row) => sum + Number(row.amount_paid || 0), 0)
                 const lifetimeInterest = Math.max(0, lifetimeRepayments - originalCapital)
-                const currentCycleRepayments = (selectedLoan.instalments || [])
-                  .filter(row => Number(row.rollover_number || 0) === Number(selectedLoan.rollover_count || 0))
-                  .reduce((sum, row) => sum + Number(row.amount_paid || 0), 0)
                 return <div className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="rounded-xl p-3" style={{ background: '#f8fafc' }}>
