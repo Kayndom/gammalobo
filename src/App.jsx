@@ -40,9 +40,23 @@ function App() {
         <div className="regnum-intro-mark mx-auto" aria-hidden="true">
           <span>R</span>
         </div>
-        <p className="regnum-intro-eyebrow mt-8">REGNUM VENTURES</p>
-        <h1 className="regnum-intro-title mt-3">Clarity in every<br />financial decision.</h1>
-        <p className="regnum-intro-caption mt-4">Business finance, thoughtfully managed.</p>
+        {window.location.pathname.startsWith('/apply/')
+          ? <>
+              <p className="regnum-intro-eyebrow mt-8">REGNUM VENTURES</p>
+              <h1 className="regnum-intro-title mt-3">Your loan application starts here.</h1>
+              <p className="regnum-intro-caption mt-4">Provide your details accurately and submit your application for review.</p>
+            </>
+          : window.location.pathname.startsWith('/guarantor/') || window.location.pathname.startsWith('/consent/')
+            ? <>
+                <p className="regnum-intro-eyebrow mt-8">REGNUM VENTURES</p>
+                <h1 className="regnum-intro-title mt-3">Your confirmation matters.</h1>
+                <p className="regnum-intro-caption mt-4">A borrower has nominated you as a guarantor. Please review the information carefully before deciding whether to proceed.</p>
+              </>
+            : <>
+                <p className="regnum-intro-eyebrow mt-8">REGNUM MANAGEMENT</p>
+                <h1 className="regnum-intro-title mt-3">LOAN MANAGEMENT SYSTEM (LMS)</h1>
+                <p className="regnum-intro-caption mt-4">Smarter loan management. Clearer financial records. Better business control.</p>
+              </>}
         <div className="regnum-intro-progress mt-10" aria-hidden="true"><span /></div>
         {introComplete
           ? <p className="regnum-intro-caption mt-4" role="status">Preparing your workspace…</p>
