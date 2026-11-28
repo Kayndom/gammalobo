@@ -83,6 +83,17 @@ export default function LoaneeForm() {
 
       const existing = [...matches.values()][0]
       if (existing) {
+        const conflictingIdentifier = identifiers.some(([field, value]) => {
+          const stored = String(existing[field] || '').trim().toLowerCase()
+          return stored && stored !== value.trim().toLowerCase()
+        })
+        if (conflictingIdentifier) {
+          setError('Some of the details entered do not agree with the existing record. Please check your information or contact REGNUM for assistance. No existing details have been loaded.')
+          setDetected(false)
+          setIsReturning(false)
+          setDetecting(false)
+          return
+        }
         setVerifiedApplicantId(existing.id)
         setForm(prev => ({
           ...prev,
