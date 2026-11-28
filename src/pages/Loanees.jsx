@@ -2,6 +2,21 @@ import { useState, useEffect } from 'react'
 import MainLayout from '../layouts/MainLayout'
 import { supabase } from '../lib/supabase'
 
+function getRecordedPaymentCycle(loan, instalment) {
+  const explicitCycle = Number(instalment.rollover_number || 0)
+  if (explicitCycle > 0) return explicitCycle
+  const logs = loan.loan_logs || []
+  const matchingLogs = logs.filter(log =>
+    log.activity_type === 'payment' &&
+    Math.abs(Number(log.amount || 0) - Number(instalment.amount_paid || 0)) < 0.02
+  )
+  if (!matchingLogs.length) return null
+  const cycles = [...new Set(matchingLogs.map(log =>
+    logs.filter(event => event.activity_type === 'rollover' && new Date(event.created_at) < new Date(log.created_at)).length
+  ))]
+  return cycles.length === 1 ? cycles[0] : null
+}
+
 export default function Loanees() {
   const [loanees, setLoanees] = useState([])
   const [loading, setLoading] = useState(true)
@@ -202,7 +217,7 @@ export default function Loanees() {
                             </p>
                             {loan.instalments.map(inst => (
                               <div key={inst.id} className="flex justify-between text-xs text-gray-500">
-                                <span>₦{Number(inst.amount_paid).toLocaleString()}</span>
+                                <span>₦{Number(inst.amount_paid).toLocaleString()} · {getRecordedPaymentCycle(loan, inst) === null ? 'Cycle unverified' : getRecordedPaymentCycle(loan, inst) === 0 ? 'Original cycle' : `Rollover #${getRecordedPaymentCycle(loan, inst)}`}</span>
                                 <span>{new Date(inst.payment_date).toLocaleDateString('en-NG', {
                                   day: 'numeric', month: 'short', year: 'numeric'
                                 })}</span>
