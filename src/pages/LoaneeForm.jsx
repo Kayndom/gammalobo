@@ -285,7 +285,7 @@ export default function LoaneeForm() {
           {!detected && (
             <div>
               <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">Quick Check</h2>
-              <p className="text-xs text-gray-500 mb-4">Enter any of the fields below so we can check if you've applied before and pre-fill your details.</p>
+              <p className="text-xs text-gray-500 mb-4">Enter your phone number, BVN, NIN or email to check for a previous application. Your name alone is never used to identify an existing applicant.</p>
               <div className="space-y-3">
                 <input type="text" placeholder="Full Name" value={form.full_name}
                   onChange={(e) => handleChange('full_name', e.target.value)}
