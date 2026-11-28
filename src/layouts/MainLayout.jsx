@@ -6,6 +6,12 @@ export default function MainLayout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [theme, setTheme] = useState(() => { try { return localStorage.getItem('regnum-theme') === 'dark' ? 'dark' : 'light' } catch { return 'light' } })
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    try { localStorage.setItem('regnum-theme', theme) } catch {}
+  }, [theme])
 
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
@@ -130,7 +136,9 @@ export default function MainLayout({ children }) {
           <button type="button" onClick={() => setSidebarOpen(true)} className="w-9 h-9 border border-[var(--border)] rounded-md text-slate-700 hover:bg-slate-50 transition-colors lg:hidden" aria-label="Open menu">☰</button>
           <div className="font-bold tracking-[.12em] text-sm text-slate-800 lg:hidden">REGNUM <span className="font-normal tracking-normal text-slate-500">Ventures</span></div>
           <div className="hidden lg:flex flex-col justify-center min-w-0"><span className="text-sm font-semibold text-slate-800">{activePage?.label || 'Business workspace'}</span><span className="text-[11px] text-slate-400">REGNUM VENTURES · ADMIN WORKSPACE</span></div>
-          <div className="ml-auto relative">
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" onClick={() => setTheme(value => value === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to day mode' : 'Switch to night mode'} aria-pressed={theme === 'dark'} className="h-10 px-3 flex items-center gap-2 rounded-md border border-[var(--border)] text-slate-700 hover:bg-slate-50 text-xs font-semibold"><span aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span><span className="hidden sm:inline">{theme === 'dark' ? 'Day mode' : 'Night mode'}</span></button>
+            <div className="relative">
             <button type="button" onClick={() => setNotificationsOpen(v => !v)} aria-label={'Notifications, ' + notifications.length + ' items'} aria-expanded={notificationsOpen} className="relative w-10 h-10 flex items-center justify-center rounded-md border border-[var(--border)] text-slate-700 hover:bg-slate-50">
               <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
               {notifications.length > 0 && <span className="absolute -top-1 -right-1 min-w-[19px] h-[19px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center">{notifications.length > 99 ? '99+' : notifications.length}</span>}
